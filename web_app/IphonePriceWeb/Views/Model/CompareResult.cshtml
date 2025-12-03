@@ -1,0 +1,71 @@
+@model IphonePriceWeb.Models.ModelCompareViewModel
+@{
+    ViewData["Title"] = "Karşılaştırma Sonucu";
+}
+
+<div class="container mt-4">
+    <h2><i class="bi bi-bar-chart me-2"></i>Karşılaştırma Sonucu</h2>
+    
+    @if (TempData["Model1Name"] != null)
+    {
+        <p class="text-muted">@TempData["Model1Name"] vs @TempData["Model2Name"]</p>
+    }
+    
+    <hr />
+
+    <div class="row">
+        <div class="col-md-5">
+            <div class="card shadow border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">@Model?.Model1?.Name</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Çıkış Yılı</span>
+                            <strong>@Model?.Model1?.ReleaseYear</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Marka</span>
+                            <strong>@(Model?.Model1?.BrandName ?? "Apple")</strong>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-2 text-center align-self-center">
+            <i class="bi bi-arrow-left-right text-muted" style="font-size: 3rem;"></i>
+        </div>
+
+        <div class="col-md-5">
+            <div class="card shadow border-success">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">@Model?.Model2?.Name</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Çıkış Yılı</span>
+                            <strong>@Model?.Model2?.ReleaseYear</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Marka</span>
+                            <strong>@(Model?.Model2?.BrandName ?? "Apple")</strong>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="text-center mt-4">
+        <a asp-action="Compare" class="btn btn-outline-primary">
+            <i class="bi bi-arrow-repeat me-1"></i>Yeni Karşılaştırma
+        </a>
+        <a asp-controller="Home" asp-action="Index" class="btn btn-primary">
+            <i class="bi bi-calculator me-1"></i>Fiyat Tahmin Et
+        </a>
+    </div>
+</div>
+

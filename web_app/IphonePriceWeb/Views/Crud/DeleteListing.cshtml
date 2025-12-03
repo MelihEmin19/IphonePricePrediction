@@ -1,0 +1,63 @@
+@model IphonePriceWeb.Data.Entities.Listing
+@{
+    ViewData["Title"] = "İlan Sil";
+}
+
+<div class="container mt-4">
+    <h2 class="text-danger"><i class="bi bi-trash me-2"></i>İlan Sil (DELETE)</h2>
+    <hr />
+
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">Silme Onayı</h5>
+                </div>
+                <div class="card-body">
+                    <p class="lead">Bu ilanı silmek istediğinizden emin misiniz?</p>
+                    
+                    <table class="table">
+                        <tr>
+                            <th>ID:</th>
+                            <td>@Model.Id</td>
+                        </tr>
+                        <tr>
+                            <th>Model:</th>
+                            <td>@Model.Spec?.Model?.Name</td>
+                        </tr>
+                        <tr>
+                            <th>Fiyat:</th>
+                            <td class="text-success fw-bold">₺@Model.Price.ToString("N0")</td>
+                        </tr>
+                        <tr>
+                            <th>Durum:</th>
+                            <td>@Model.Condition</td>
+                        </tr>
+                        <tr>
+                            <th>Kaynak:</th>
+                            <td>@Model.Source</td>
+                        </tr>
+                    </table>
+
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Bu işlem geri alınamaz!
+                    </div>
+
+                    <form asp-action="DeleteListing" method="post">
+                        <input type="hidden" asp-for="Id" />
+                        <div class="d-flex justify-content-between">
+                            <a asp-action="Listings" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left me-1"></i>İptal
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="bi bi-trash me-1"></i>Evet, Sil
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+

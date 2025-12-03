@@ -1,0 +1,39 @@
+@model IphonePriceWeb.Models.PhoneModel
+@* PartialView: Model İstatistikleri Kartı *@
+
+<div class="card shadow mb-3">
+    <div class="card-header bg-info text-white">
+        <h6 class="mb-0"><i class="bi bi-bar-chart me-2"></i>İstatistikler</h6>
+    </div>
+    <div class="card-body">
+        <div class="d-flex justify-content-between mb-2">
+            <span>Ortalama Fiyat:</span>
+            <strong class="text-success">₺35,000</strong>
+        </div>
+        <div class="d-flex justify-content-between mb-2">
+            <span>En Düşük:</span>
+            <strong>₺28,000</strong>
+        </div>
+        <div class="d-flex justify-content-between mb-2">
+            <span>En Yüksek:</span>
+            <strong>₺45,000</strong>
+        </div>
+        <div class="d-flex justify-content-between">
+            <span>İlan Sayısı:</span>
+            <strong>124</strong>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow">
+    <div class="card-header bg-warning">
+        <h6 class="mb-0"><i class="bi bi-lightbulb me-2"></i>İpucu</h6>
+    </div>
+    <div class="card-body">
+        <small>
+            Bu modelin fiyatı son 30 günde <strong class="text-success">%5 artış</strong> gösterdi.
+            Satış için uygun bir zaman olabilir!
+        </small>
+    </div>
+</div>
+

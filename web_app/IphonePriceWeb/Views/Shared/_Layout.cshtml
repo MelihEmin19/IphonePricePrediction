@@ -28,16 +28,51 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" asp-controller="Admin" asp-action="Panel">
-                                <i class="bi bi-speedometer2"></i> Admin Paneli
+                            <a class="nav-link" asp-controller="Model" asp-action="Index">
+                                <i class="bi bi-phone"></i> Modeller
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-controller="Model" asp-action="Compare">
+                                <i class="bi bi-bar-chart"></i> Karşılaştır
+                            </a>
+                        </li>
+                        @if (User.Identity?.IsAuthenticated ?? false)
+                        {
+                            @if (User.IsInRole("Admin"))
+                            {
+                                <li class="nav-item">
+                                    <a class="nav-link" asp-controller="Admin" asp-action="Panel">
+                                        <i class="bi bi-speedometer2"></i> Admin Paneli
+                                    </a>
+                                </li>
+                            }
+                        }
                     </ul>
+                    <!-- Login Partial View -->
+                    <partial name="_LoginPartial" />
                 </div>
             </div>
         </nav>
     </header>
+
     <div class="container-fluid">
+        <!-- Başarı/Hata Mesajları -->
+        @if (TempData["SuccessMessage"] != null)
+        {
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="bi bi-check-circle me-2"></i>@TempData["SuccessMessage"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        }
+        @if (TempData["Error"] != null)
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle me-2"></i>@TempData["Error"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        }
+
         <main role="main" class="pb-3">
             @RenderBody()
         </main>

@@ -194,5 +194,98 @@ namespace IphonePriceWeb.Models
         [JsonPropertyName("avg_price")]
         public double AvgPrice { get; set; }
     }
+
+    /// <summary>
+    /// Login modeli
+    /// </summary>
+    public class LoginViewModel
+    {
+        [Required(ErrorMessage = "Kullanıcı adı zorunludur")]
+        [Display(Name = "Kullanıcı Adı")]
+        public string Username { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Şifre zorunludur")]
+        [DataType(DataType.Password)]
+        [Display(Name = "Şifre")]
+        public string Password { get; set; } = string.Empty;
+
+        [Display(Name = "Beni Hatırla")]
+        public bool RememberMe { get; set; }
+    }
+
+    /// <summary>
+    /// Register modeli
+    /// </summary>
+    public class RegisterViewModel
+    {
+        [Required(ErrorMessage = "Kullanıcı adı zorunludur")]
+        [StringLength(50, MinimumLength = 3)]
+        [Display(Name = "Kullanıcı Adı")]
+        public string Username { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "E-posta zorunludur")]
+        [EmailAddress(ErrorMessage = "Geçerli bir e-posta adresi girin")]
+        [Display(Name = "E-posta")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Şifre zorunludur")]
+        [StringLength(100, MinimumLength = 6)]
+        [DataType(DataType.Password)]
+        [Display(Name = "Şifre")]
+        public string Password { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Şifre tekrarı zorunludur")]
+        [DataType(DataType.Password)]
+        [Compare("Password", ErrorMessage = "Şifreler uyuşmuyor")]
+        [Display(Name = "Şifre Tekrar")]
+        public string ConfirmPassword { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// Kullanıcı profil modeli
+    /// </summary>
+    public class UserProfileViewModel
+    {
+        public string Username { get; set; } = string.Empty;
+        public string Role { get; set; } = string.Empty;
+        public string LoginTime { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// Model karşılaştırma modeli
+    /// </summary>
+    public class ModelCompareViewModel
+    {
+        public PhoneModel? Model1 { get; set; }
+        public PhoneModel? Model2 { get; set; }
+    }
+
+    /// <summary>
+    /// Tahmin geçmişi öğesi
+    /// </summary>
+    public class PredictionHistoryItem
+    {
+        public int Id { get; set; }
+        public string ModelName { get; set; } = string.Empty;
+        public int Storage { get; set; }
+        public int Ram { get; set; }
+        public string Condition { get; set; } = string.Empty;
+        public decimal PredictedPrice { get; set; }
+        public decimal PriceUsd { get; set; }
+        public decimal Confidence { get; set; }
+        public DateTime PredictedAt { get; set; }
+    }
+
+    /// <summary>
+    /// Tahmin istatistikleri
+    /// </summary>
+    public class PredictionStatsViewModel
+    {
+        public int TotalPredictions { get; set; }
+        public int TodayPredictions { get; set; }
+        public decimal AverageConfidence { get; set; }
+        public string MostPredictedModel { get; set; } = string.Empty;
+        public decimal AveragePredictedPrice { get; set; }
+    }
 }
 
