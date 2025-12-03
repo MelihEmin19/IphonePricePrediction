@@ -1,0 +1,177 @@
+@model IphonePriceWeb.Models.DashboardStats
+
+@{
+    ViewData["Title"] = "Admin Paneli";
+}
+
+<div class="container-fluid mt-4">
+    <h1 class="mb-4">
+        <i class="bi bi-speedometer2"></i> Admin Paneli
+    </h1>
+
+    @if (TempData["Message"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["Message"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Genel İstatistikler -->
+    @if (Model?.Overall != null)
+    {
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card text-white bg-primary">
+                    <div class="card-body">
+                        <h5 class="card-title">Toplam Kullanıcı</h5>
+                        <h2 class="display-4">@Model.Overall.TotalUsers</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-white bg-success">
+                    <div class="card-body">
+                        <h5 class="card-title">Aktif İlanlar</h5>
+                        <h2 class="display-4">@Model.Overall.ActiveListings</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-white bg-info">
+                    <div class="card-body">
+                        <h5 class="card-title">Toplam Tahmin</h5>
+                        <h2 class="display-4">@Model.Overall.TotalPredictions</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-white bg-warning">
+                    <div class="card-body">
+                        <h5 class="card-title">Ort. Fiyat</h5>
+                        <h2 class="display-4">₺@((int)Model.Overall.OverallAvgPrice)K</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Scraper Kontrol -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <h4 class="mb-0">Veri Toplama (Scraper)</h4>
+                </div>
+                <div class="card-body">
+                    @if (Model?.Scraper != null)
+                    {
+                        <div class="row mb-3">
+                            <div class="col-md-3">
+                                <strong>Toplam İlan:</strong> @Model.Scraper.TotalListings
+                            </div>
+                            <div class="col-md-3">
+                                <strong>Aktif İlan:</strong> @Model.Scraper.ActiveListings
+                            </div>
+                            <div class="col-md-3">
+                                <strong>Ort. Fiyat:</strong> ₺@Model.Scraper.AvgPrice.ToString("N2")
+                            </div>
+                            <div class="col-md-3">
+                                <strong>Son Güncelleme:</strong> 
+                                @if (Model.Scraper.LastScrapeTime.HasValue)
+                                {
+                                    @Model.Scraper.LastScrapeTime.Value.ToString("dd.MM.yyyy HH:mm")
+                                }
+                                else
+                                {
+                                    <span class="text-muted">Henüz veri çekilmedi</span>
+                                }
+                            </div>
+                        </div>
+                    }
+
+                    <form asp-action="TriggerScraper" method="post">
+                        <button type="submit" class="btn btn-danger btn-lg">
+                            <i class="bi bi-arrow-clockwise"></i> Yeni Veri Çek
+                        </button>
+                        <small class="text-muted d-block mt-2">
+                            Bu işlem arka planda çalışır ve birkaç dakika sürebilir.
+                        </small>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Marka Bazlı Fiyatlar -->
+    @if (Model?.Brands != null && Model.Brands.Any())
+    {
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h4 class="mb-0">Marka Bazlı Ortalama Fiyatlar</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Marka</th>
+                                        <th>İlan Sayısı</th>
+                                        <th>Ortalama Fiyat</th>
+                                        <th>Min Fiyat</th>
+                                        <th>Max Fiyat</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var brand in Model.Brands)
+                                    {
+                                        <tr>
+                                            <td><strong>@brand.BrandName</strong></td>
+                                            <td>@brand.ListingCount</td>
+                                            <td>₺@brand.AvgPrice.ToString("N2")</td>
+                                            <td>₺@brand.MinPrice.ToString("N2")</td>
+                                            <td>₺@brand.MaxPrice.ToString("N2")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Hızlı Linkler -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Hızlı Erişim</h4>
+                </div>
+                <div class="card-body">
+                    <a asp-controller="Home" asp-action="Index" class="btn btn-primary me-2">
+                        <i class="bi bi-house"></i> Ana Sayfa
+                    </a>
+                    <a href="http://localhost:3000/api/health" target="_blank" class="btn btn-info me-2">
+                        <i class="bi bi-heart-pulse"></i> API Health Check
+                    </a>
+                    <a href="http://localhost:3000" target="_blank" class="btn btn-secondary me-2">
+                        <i class="bi bi-server"></i> Node.js API
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
