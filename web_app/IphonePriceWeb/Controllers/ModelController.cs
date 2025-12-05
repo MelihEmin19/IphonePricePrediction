@@ -101,6 +101,10 @@ namespace IphonePriceWeb.Controllers
                     return RedirectToAction("Compare");
                 }
 
+                // Model istatistiklerini al (RAM, Storage, Camera MP, Ortalama Fiyat)
+                var stats1 = await _apiService.GetModelStatsAsync(model1.Name);
+                var stats2 = await _apiService.GetModelStatsAsync(model2.Name);
+
                 // TempData ile veri aktarımı (İster: TempData kullanımı)
                 TempData["Model1Name"] = model1.Name;
                 TempData["Model2Name"] = model2.Name;
@@ -108,7 +112,9 @@ namespace IphonePriceWeb.Controllers
                 var compareModel = new ModelCompareViewModel
                 {
                     Model1 = model1,
-                    Model2 = model2
+                    Model2 = model2,
+                    Stats1 = stats1,
+                    Stats2 = stats2
                 };
 
                 return View(compareModel);

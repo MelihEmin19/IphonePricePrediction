@@ -113,6 +113,78 @@ router.get('/specs/:modelId', async (req, res) => {
 });
 
 /**
+ * GET /api/model-stats/:modelName
+ * Model istatistiklerini CSV'den hesapla (karşılaştırma için)
+ */
+router.get('/model-stats/:modelName', async (req, res) => {
+    try {
+        const { modelName } = req.params;
+        const fs = require('fs');
+        const path = require('path');
+        
+        // CSV dosyasını oku (doğru yol)
+        const csvPath = path.join(__dirname, '..', '..', '..', 'data', 'dataset.csv');
+        const csvContent = fs.readFileSync(csvPath, 'utf-8');
+        const lines = csvContent.trim().split('\n');
+        const headers = lines[0].split(',');
+        
+        // İlgili modelin verilerini filtrele
+        const modelData = [];
+        for (let i = 1; i < lines.length; i++) {
+            const values = lines[i].split(',');
+            const row = {};
+            headers.forEach((h, idx) => row[h] = values[idx]);
+            
+            if (row.model === modelName) {
+                modelData.push(row);
+            }
+        }
+        
+        if (modelData.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Model bulunamadı'
+            });
+        }
+        
+        // İstatistikleri hesapla
+        const prices = modelData.map(d => parseFloat(d.price));
+        const avgPrice = prices.reduce((a, b) => a + b, 0) / prices.length;
+        const minPrice = Math.min(...prices);
+        const maxPrice = Math.max(...prices);
+        
+        // RAM ve Storage değerlerini topla
+        const ramValues = [...new Set(modelData.map(d => parseInt(d.ram_gb)))].sort((a, b) => a - b);
+        const storageValues = [...new Set(modelData.map(d => parseInt(d.storage_gb)))].sort((a, b) => a - b);
+        
+        // İlk satırdan diğer bilgileri al
+        const firstRow = modelData[0];
+        
+        res.json({
+            success: true,
+            data: {
+                model_name: modelName,
+                ram_gb: ramValues,
+                storage_gb: storageValues,
+                camera_mp: parseInt(firstRow.ana_kamera_mp) || 12,
+                segment: firstRow.segment || 'Base',
+                release_year: parseInt(firstRow.cikis_yili) || 2020,
+                avg_price: Math.round(avgPrice * 100) / 100,
+                min_price: Math.round(minPrice * 100) / 100,
+                max_price: Math.round(maxPrice * 100) / 100,
+                listing_count: modelData.length
+            }
+        });
+    } catch (error) {
+        console.error('Model stats hatası:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+/**
  * POST /api/predict
  * Fiyat tahmini yap (Ana endpoint)
  */

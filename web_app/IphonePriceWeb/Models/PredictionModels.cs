@@ -258,6 +258,44 @@ namespace IphonePriceWeb.Models
     {
         public PhoneModel? Model1 { get; set; }
         public PhoneModel? Model2 { get; set; }
+        public ModelStats? Stats1 { get; set; }
+        public ModelStats? Stats2 { get; set; }
+    }
+
+    /// <summary>
+    /// Model istatistikleri (karşılaştırma için)
+    /// </summary>
+    public class ModelStats
+    {
+        [JsonPropertyName("model_name")]
+        public string ModelName { get; set; } = string.Empty;
+
+        [JsonPropertyName("ram_gb")]
+        public List<int> RamGb { get; set; } = new List<int>();
+
+        [JsonPropertyName("storage_gb")]
+        public List<int> StorageGb { get; set; } = new List<int>();
+
+        [JsonPropertyName("camera_mp")]
+        public int CameraMp { get; set; }
+
+        [JsonPropertyName("segment")]
+        public string Segment { get; set; } = string.Empty;
+
+        [JsonPropertyName("release_year")]
+        public int ReleaseYear { get; set; }
+
+        [JsonPropertyName("avg_price")]
+        public double AvgPrice { get; set; }
+
+        [JsonPropertyName("min_price")]
+        public double MinPrice { get; set; }
+
+        [JsonPropertyName("max_price")]
+        public double MaxPrice { get; set; }
+
+        [JsonPropertyName("listing_count")]
+        public int ListingCount { get; set; }
     }
 
     /// <summary>

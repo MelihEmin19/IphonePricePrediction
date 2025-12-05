@@ -155,6 +155,30 @@ namespace IphonePriceWeb.Services
                 return false;
             }
         }
+
+        /// <summary>
+        /// Model istatistiklerini getir (karşılaştırma için)
+        /// </summary>
+        public async Task<ModelStats?> GetModelStatsAsync(string modelName)
+        {
+            try
+            {
+                var encodedName = Uri.EscapeDataString(modelName);
+                var response = await _httpClient.GetAsync($"/api/model-stats/{encodedName}");
+                response.EnsureSuccessStatusCode();
+
+                var content = await response.Content.ReadAsStringAsync();
+                var apiResponse = JsonSerializer.Deserialize<ApiResponse<ModelStats>>(content,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                return apiResponse?.Data;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Model istatistikleri alınamadı: {modelName}");
+                return null;
+            }
+        }
     }
 }
 

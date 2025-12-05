@@ -6,32 +6,82 @@
 const axios = require('axios');
 const config = require('../config');
 
+// Son alınan kuru ve zamanını cache'le (5 dakika geçerli)
+let cachedRate = null;
+let cacheTime = null;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 dakika
+
 /**
- * TCMB'den güncel USD/TRY kurunu çek
+ * Güncel USD/TRY kurunu çek (birden fazla kaynak dener)
  */
 async function getExchangeRate() {
+    // Cache kontrolü
+    if (cachedRate && cacheTime && (Date.now() - cacheTime < CACHE_DURATION)) {
+        console.log(`Cache'den USD/TRY kuru: ${cachedRate}`);
+        return cachedRate;
+    }
+
+    // Kaynak 1: ExchangeRate-API (ücretsiz, güvenilir)
     try {
-        // TCMB XML servisi (gerçek)
-        const response = await axios.get(config.soap.exchangeRateApi, {
-            timeout: 5000
+        const response = await axios.get('https://api.exchangerate-api.com/v4/latest/USD', {
+            timeout: 10000
         });
         
-        // XML parse et (basit regex ile)
-        const usdMatch = response.data.match(/<Currency Kod="USD"[\s\S]*?<ForexSelling>([\d.]+)<\/ForexSelling>/);
+        if (response.data && response.data.rates && response.data.rates.TRY) {
+            const rate = response.data.rates.TRY;
+            cachedRate = rate;
+            cacheTime = Date.now();
+            console.log(`ExchangeRate-API USD/TRY kuru: ${rate}`);
+            return rate;
+        }
+    } catch (error) {
+        console.warn('ExchangeRate-API başarısız:', error.message);
+    }
+
+    // Kaynak 2: Frankfurter API (backup)
+    try {
+        const response = await axios.get('https://api.frankfurter.app/latest?from=USD&to=TRY', {
+            timeout: 10000
+        });
+        
+        if (response.data && response.data.rates && response.data.rates.TRY) {
+            const rate = response.data.rates.TRY;
+            cachedRate = rate;
+            cacheTime = Date.now();
+            console.log(`Frankfurter API USD/TRY kuru: ${rate}`);
+            return rate;
+        }
+    } catch (error) {
+        console.warn('Frankfurter API başarısız:', error.message);
+    }
+
+    // Kaynak 3: TCMB (eski kaynak)
+    try {
+        const response = await axios.get(config.soap.exchangeRateApi, {
+            timeout: 10000
+        });
+        
+        const usdMatch = response.data.match(/<Currency Kod="USD"[\s\S]*?<ForexSelling>([\d.,]+)<\/ForexSelling>/);
         
         if (usdMatch && usdMatch[1]) {
-            const rate = parseFloat(usdMatch[1]);
+            const rate = parseFloat(usdMatch[1].replace(',', '.'));
+            cachedRate = rate;
+            cacheTime = Date.now();
             console.log(`TCMB USD/TRY kuru: ${rate}`);
             return rate;
         }
-        
-        throw new Error('USD kuru parse edilemedi');
-        
     } catch (error) {
-        console.warn('TCMB servisi çalışmıyor, mock kur kullanılıyor:', error.message);
-        // Fallback: Mock kur
-        return 32.50; // 2024 Aralık mock kuru
+        console.warn('TCMB servisi başarısız:', error.message);
     }
+
+    // Tüm kaynaklar başarısız olduysa cache'den veya varsayılan değer
+    if (cachedRate) {
+        console.log(`Eski cache kullanılıyor: ${cachedRate}`);
+        return cachedRate;
+    }
+
+    console.warn('Tüm döviz API kaynakları başarısız, varsayılan kur kullanılıyor');
+    return 34.50; // Aralık 2024 yaklaşık kuru
 }
 
 /**
