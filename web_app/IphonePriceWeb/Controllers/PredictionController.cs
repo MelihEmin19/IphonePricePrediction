@@ -1,137 +1,95 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 using IphonePriceWeb.Services;
 using IphonePriceWeb.Models;
+using IphonePriceWeb.Data;
 
 namespace IphonePriceWeb.Controllers
 {
     /// <summary>
-    /// Tahmin geçmişi ve analiz Controller
+    /// Tahmin istatistikleri Controller
+    /// Gereksiz sahte verili action'lar kaldırıldı
     /// </summary>
     public class PredictionController : Controller
     {
         private readonly ApiService _apiService;
+        private readonly ApplicationDbContext _context;
         private readonly ILogger<PredictionController> _logger;
 
-        public PredictionController(ApiService apiService, ILogger<PredictionController> logger)
+        public PredictionController(ApiService apiService, ApplicationDbContext context, ILogger<PredictionController> logger)
         {
             _apiService = apiService;
+            _context = context;
             _logger = logger;
         }
 
         /// <summary>
-        /// Tahmin geçmişi listesi
+        /// Tahmin istatistikleri (Admin) - GERÇEK VERİ
         /// </summary>
-        [Authorize]
-        public IActionResult History()
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Statistics()
         {
-            // Demo tahmin geçmişi
-            var predictions = new List<PredictionHistoryItem>
+            try
             {
-                new PredictionHistoryItem 
-                { 
-                    Id = 1, 
-                    ModelName = "iPhone 14 Pro", 
-                    Storage = 256, 
-                    Condition = "Mükemmel",
-                    PredictedPrice = 42500,
-                    PredictedAt = DateTime.Now.AddDays(-1)
-                },
-                new PredictionHistoryItem 
-                { 
-                    Id = 2, 
-                    ModelName = "iPhone 13", 
-                    Storage = 128, 
-                    Condition = "İyi",
-                    PredictedPrice = 28000,
-                    PredictedAt = DateTime.Now.AddDays(-3)
-                },
-                new PredictionHistoryItem 
-                { 
-                    Id = 3, 
-                    ModelName = "iPhone 12", 
-                    Storage = 64, 
-                    Condition = "Orta",
-                    PredictedPrice = 18500,
-                    PredictedAt = DateTime.Now.AddDays(-7)
+                // Gerçek veritabanı sorguları
+                var totalPredictions = await _context.Predictions.CountAsync();
+                var todayPredictions = await _context.Predictions
+                    .CountAsync(p => p.CreatedAt.Date == DateTime.UtcNow.Date);
+                
+                // Ortalama güven skoru
+                var avgConfidence = await _context.Predictions
+                    .Where(p => p.ConfidenceScore.HasValue)
+                    .AverageAsync(p => (double?)p.ConfidenceScore) ?? 0;
+                
+                // En çok tahmin yapılan model
+                var mostPredictedModelId = await _context.Predictions
+                    .GroupBy(p => p.SpecId)
+                    .OrderByDescending(g => g.Count())
+                    .Select(g => g.Key)
+                    .FirstOrDefaultAsync();
+                
+                string mostPredictedModel = "Henüz tahmin yok";
+                if (mostPredictedModelId > 0)
+                {
+                    var spec = await _context.Specs
+                        .Include(s => s.Model)
+                        .FirstOrDefaultAsync(s => s.Id == mostPredictedModelId);
+                    mostPredictedModel = spec?.Model?.Name ?? "Bilinmiyor";
                 }
-            };
+                
+                // Ortalama tahmin fiyatı
+                var avgPredictedPrice = await _context.Predictions
+                    .AverageAsync(p => (double?)p.PredictedPrice) ?? 0;
 
-            return View(predictions);
-        }
+                var stats = new PredictionStatsViewModel
+                {
+                    TotalPredictions = totalPredictions,
+                    TodayPredictions = todayPredictions,
+                    AverageConfidence = (decimal)avgConfidence,
+                    MostPredictedModel = mostPredictedModel,
+                    AveragePredictedPrice = (decimal)avgPredictedPrice
+                };
 
-        /// <summary>
-        /// Tahmin detayı
-        /// </summary>
-        [Authorize]
-        public IActionResult Details(int id)
-        {
-            var prediction = new PredictionHistoryItem
+                return View(stats);
+            }
+            catch (Exception ex)
             {
-                Id = id,
-                ModelName = "iPhone 14 Pro",
-                Storage = 256,
-                Ram = 6,
-                Condition = "Mükemmel",
-                PredictedPrice = 42500,
-                PriceUsd = 1308,
-                Confidence = 95.5m,
-                PredictedAt = DateTime.Now.AddDays(-1)
-            };
+                _logger.LogError(ex, "İstatistik yüklenirken hata");
+                
+                // Hata durumunda boş istatistik göster
+                var stats = new PredictionStatsViewModel
+                {
+                    TotalPredictions = 0,
+                    TodayPredictions = 0,
+                    AverageConfidence = 0,
+                    MostPredictedModel = "Veri yüklenemedi",
+                    AveragePredictedPrice = 0
+                };
 
-            // ViewData kullanımı (İster: ViewData)
-            ViewData["PredictionId"] = id;
-            ViewData["Title"] = $"Tahmin #{id} Detayı";
-
-            return View(prediction);
-        }
-
-        /// <summary>
-        /// Tahmin istatistikleri (Admin)
-        /// </summary>
-        [Authorize(Roles = "Admin")]
-        public IActionResult Statistics()
-        {
-            var stats = new PredictionStatsViewModel
-            {
-                TotalPredictions = 1250,
-                TodayPredictions = 45,
-                AverageConfidence = 92.5m,
-                MostPredictedModel = "iPhone 14 Pro",
-                AveragePredictedPrice = 35000
-            };
-
-            return View(stats);
-        }
-
-        /// <summary>
-        /// Tahmin karşılaştırma
-        /// </summary>
-        public IActionResult Compare()
-        {
-            return View();
-        }
-
-        /// <summary>
-        /// Toplu tahmin (Admin)
-        /// </summary>
-        [Authorize(Roles = "Admin")]
-        [HttpGet]
-        public IActionResult Bulk()
-        {
-            return View();
-        }
-
-        /// <summary>
-        /// Toplu tahmin işlemi
-        /// </summary>
-        [Authorize(Roles = "Admin")]
-        [HttpPost]
-        public IActionResult BulkProcess(List<PredictionRequest> requests)
-        {
-            TempData["Message"] = $"{requests?.Count ?? 0} tahmin işlendi.";
-            return RedirectToAction("Bulk");
+                ViewBag.Error = "İstatistikler yüklenirken bir hata oluştu.";
+                return View(stats);
+            }
         }
     }
 }
-

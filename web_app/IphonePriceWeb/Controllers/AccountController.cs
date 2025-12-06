@@ -1,21 +1,46 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 using IphonePriceWeb.Models;
+using IphonePriceWeb.Data;
+using IphonePriceWeb.Data.Entities;
 
 namespace IphonePriceWeb.Controllers
 {
     /// <summary>
     /// Kullanıcı hesap işlemleri - Login/Logout/Register
+    /// Gerçek veritabanı entegrasyonu ile
     /// </summary>
     public class AccountController : Controller
     {
         private readonly ILogger<AccountController> _logger;
+        private readonly ApplicationDbContext _context;
 
-        public AccountController(ILogger<AccountController> logger)
+        public AccountController(ILogger<AccountController> logger, ApplicationDbContext context)
         {
             _logger = logger;
+            _context = context;
+        }
+
+        /// <summary>
+        /// SHA256 ile şifre hash'leme
+        /// </summary>
+        private string HashPassword(string password)
+        {
+            using (SHA256 sha256 = SHA256.Create())
+            {
+                byte[] bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
+                StringBuilder builder = new StringBuilder();
+                foreach (byte b in bytes)
+                {
+                    builder.Append(b.ToString("x2"));
+                }
+                return builder.ToString();
+            }
         }
 
         /// <summary>
@@ -24,12 +49,18 @@ namespace IphonePriceWeb.Controllers
         [HttpGet]
         public IActionResult Login(string? returnUrl = null)
         {
+            // Zaten giriş yapmışsa ana sayfaya yönlendir
+            if (User.Identity?.IsAuthenticated ?? false)
+            {
+                return RedirectToAction("Index", "Home");
+            }
+            
             ViewData["ReturnUrl"] = returnUrl;
             return View();
         }
 
         /// <summary>
-        /// Login işlemi
+        /// Login işlemi - Veritabanından kontrol
         /// </summary>
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -42,9 +73,8 @@ namespace IphonePriceWeb.Controllers
                 return View(model);
             }
 
-            // Basit kullanıcı doğrulama (demo amaçlı)
-            // Gerçek projede veritabanından kontrol edilmeli
-            var (isValid, role) = ValidateUser(model.Username, model.Password);
+            // Veritabanından kullanıcı doğrulama
+            var (isValid, role, userId) = await ValidateUserAsync(model.Username, model.Password);
 
             if (isValid)
             {
@@ -52,6 +82,7 @@ namespace IphonePriceWeb.Controllers
                 {
                     new Claim(ClaimTypes.Name, model.Username),
                     new Claim(ClaimTypes.Role, role),
+                    new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
                     new Claim("LoginTime", DateTime.Now.ToString())
                 };
 
@@ -107,25 +138,62 @@ namespace IphonePriceWeb.Controllers
         [HttpGet]
         public IActionResult Register()
         {
+            // Zaten giriş yapmışsa ana sayfaya yönlendir
+            if (User.Identity?.IsAuthenticated ?? false)
+            {
+                return RedirectToAction("Index", "Home");
+            }
+            
             return View();
         }
 
         /// <summary>
-        /// Kayıt işlemi
+        /// Kayıt işlemi - Veritabanına kaydeder
         /// </summary>
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult Register(RegisterViewModel model)
+        public async Task<IActionResult> Register(RegisterViewModel model)
         {
             if (!ModelState.IsValid)
             {
                 return View(model);
             }
 
-            // Demo: Kayıt başarılı varsayılıyor
-            // Gerçek projede veritabanına kaydedilmeli
-            TempData["SuccessMessage"] = "Kayıt başarılı! Şimdi giriş yapabilirsiniz.";
-            return RedirectToAction("Login");
+            // Kullanıcı adı kontrolü
+            var existingUser = await _context.Users
+                .FirstOrDefaultAsync(u => u.Username.ToLower() == model.Username.ToLower());
+
+            if (existingUser != null)
+            {
+                ModelState.AddModelError("Username", "Bu kullanıcı adı zaten kullanılıyor.");
+                return View(model);
+            }
+
+            // Yeni kullanıcı oluştur
+            var newUser = new User
+            {
+                Username = model.Username,
+                PasswordHash = HashPassword(model.Password),
+                Role = "User", // Yeni kayıtlar sadece User rolünde
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            try
+            {
+                _context.Users.Add(newUser);
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation($"Yeni kullanıcı kaydedildi: {model.Username}");
+                TempData["SuccessMessage"] = "Kayıt başarılı! Şimdi giriş yapabilirsiniz.";
+                return RedirectToAction("Login");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Kullanıcı kaydı sırasında hata");
+                ModelState.AddModelError(string.Empty, "Kayıt sırasında bir hata oluştu. Lütfen tekrar deneyin.");
+                return View(model);
+            }
         }
 
         /// <summary>
@@ -157,28 +225,52 @@ namespace IphonePriceWeb.Controllers
         }
 
         /// <summary>
-        /// Basit kullanıcı doğrulama (demo)
+        /// Veritabanından kullanıcı doğrulama
+        /// Admin için seed data fallback var
         /// </summary>
-        private (bool IsValid, string Role) ValidateUser(string username, string password)
+        private async Task<(bool IsValid, string Role, int UserId)> ValidateUserAsync(string username, string password)
         {
-            // Demo kullanıcılar
-            var users = new Dictionary<string, (string Password, string Role)>
-            {
-                { "admin", ("admin123", "Admin") },
-                { "user", ("user123", "User") },
-                { "testuser", ("test123", "User") }
-            };
+            // Önce veritabanından kontrol et
+            var user = await _context.Users
+                .FirstOrDefaultAsync(u => u.Username.ToLower() == username.ToLower());
 
-            if (users.TryGetValue(username.ToLower(), out var userData))
+            if (user != null)
             {
-                if (userData.Password == password)
+                // Şifre hash'ini kontrol et
+                string hashedPassword = HashPassword(password);
+                if (user.PasswordHash == hashedPassword)
                 {
-                    return (true, userData.Role);
+                    _logger.LogInformation($"Veritabanından giriş: {username}");
+                    return (true, user.Role, user.Id);
                 }
             }
 
-            return (false, "");
+            // Admin için seed data fallback (ilk kurulumda veritabanında yoksa)
+            if (username.ToLower() == "admin" && password == "admin123")
+            {
+                // Admin yoksa veritabanına ekle
+                var adminUser = await _context.Users
+                    .FirstOrDefaultAsync(u => u.Username.ToLower() == "admin");
+                
+                if (adminUser == null)
+                {
+                    adminUser = new User
+                    {
+                        Username = "admin",
+                        PasswordHash = HashPassword("admin123"),
+                        Role = "Admin",
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+                    _context.Users.Add(adminUser);
+                    await _context.SaveChangesAsync();
+                    _logger.LogInformation("Admin kullanıcısı seed data olarak oluşturuldu");
+                }
+
+                return (true, "Admin", adminUser.Id);
+            }
+
+            return (false, "", 0);
         }
     }
 }
-

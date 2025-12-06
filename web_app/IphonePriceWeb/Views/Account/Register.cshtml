@@ -15,25 +15,25 @@
                         <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
 
                         <div class="mb-3">
-                            <label asp-for="Username" class="form-label"></label>
+                            <label asp-for="Username" class="form-label">
+                                <i class="bi bi-person me-1"></i>@Html.DisplayNameFor(m => m.Username)
+                            </label>
                             <input asp-for="Username" class="form-control" placeholder="En az 3 karakter" />
                             <span asp-validation-for="Username" class="text-danger"></span>
                         </div>
 
                         <div class="mb-3">
-                            <label asp-for="Email" class="form-label"></label>
-                            <input asp-for="Email" class="form-control" placeholder="ornek@email.com" />
-                            <span asp-validation-for="Email" class="text-danger"></span>
-                        </div>
-
-                        <div class="mb-3">
-                            <label asp-for="Password" class="form-label"></label>
+                            <label asp-for="Password" class="form-label">
+                                <i class="bi bi-lock me-1"></i>@Html.DisplayNameFor(m => m.Password)
+                            </label>
                             <input asp-for="Password" class="form-control" placeholder="En az 6 karakter" />
                             <span asp-validation-for="Password" class="text-danger"></span>
                         </div>
 
                         <div class="mb-3">
-                            <label asp-for="ConfirmPassword" class="form-label"></label>
+                            <label asp-for="ConfirmPassword" class="form-label">
+                                <i class="bi bi-lock-fill me-1"></i>@Html.DisplayNameFor(m => m.ConfirmPassword)
+                            </label>
                             <input asp-for="ConfirmPassword" class="form-control" placeholder="Şifreyi tekrar girin" />
                             <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
                         </div>
@@ -62,4 +62,3 @@
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
 }
-

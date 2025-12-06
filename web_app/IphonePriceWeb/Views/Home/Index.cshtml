@@ -22,6 +22,17 @@
                         </div>
                     }
 
+                    @if (ViewBag.LoginWarning != null)
+                    {
+                        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            <strong>Uyarı:</strong> @ViewBag.LoginWarning
+                            <a asp-controller="Account" asp-action="Login" class="alert-link ms-2">Giriş Yap</a> veya
+                            <a asp-controller="Account" asp-action="Register" class="alert-link">Kayıt Ol</a>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    }
+
                     <p class="lead text-muted mb-4">
                         İkinci el iPhone'unuzun gerçek piyasa değerini öğrenin. 
                         Yapay zeka destekli sistemimiz, güncel pazar verilerine göre size adil bir fiyat sunar.
@@ -71,9 +82,18 @@
                         </div>
 
                         <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary btn-lg">
-                                <i class="bi bi-search"></i> Fiyat Tahmin Et
-                            </button>
+                            @if (User.Identity?.IsAuthenticated ?? false)
+                            {
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="bi bi-search"></i> Fiyat Tahmin Et
+                                </button>
+                            }
+                            else
+                            {
+                                <a asp-controller="Account" asp-action="Login" asp-route-returnUrl="@Url.Action("Index", "Home")" class="btn btn-warning btn-lg">
+                                    <i class="bi bi-box-arrow-in-right"></i> Tahmin İçin Giriş Yapın
+                                </a>
+                            }
                         </div>
                     </form>
                 </div>
