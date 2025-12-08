@@ -11,9 +11,9 @@ import numpy as np
 from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-import psycopg2
 import joblib
 import time
+import os
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -24,40 +24,56 @@ from sklearn.tree import DecisionTreeRegressor
 from sklearn.svm import SVR
 from sklearn.neighbors import KNeighborsRegressor
 
-from config import DB_CONFIG, CONDITION_SCORES
+from config import CONDITION_SCORES
+
+# CSV dosya yolu
+CSV_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'dataset.csv')
 
 
 def load_data():
-    """Veritabanından veri yükle"""
-    query = """
-    SELECT 
-        m.id as model_id,
-        m.name as model_name,
-        m.release_year,
-        s.ram_gb,
-        s.storage_gb,
-        l.condition,
-        l.price
-    FROM listings l
-    JOIN specs s ON l.spec_id = s.id
-    JOIN models m ON s.model_id = m.id
-    WHERE l.is_active = TRUE
-        AND l.price BETWEEN 5000 AND 100000
-    """
+    """CSV dosyasından veri yükle"""
+    print(f'📂 CSV okunuyor: {CSV_PATH}')
     
-    conn = psycopg2.connect(**DB_CONFIG)
-    df = pd.read_sql(query, conn)
-    conn.close()
+    df = pd.read_csv(CSV_PATH)
+    
+    # Veri kaynakları göster
+    if 'source' in df.columns:
+        sources = df['source'].value_counts()
+        print(f'\n📊 Veri Kaynakları (Sitelerden çekilmiş):')
+        for source, count in sources.items():
+            print(f'   {source}: {count} ilan')
+    
     return df
 
 
 def prepare_features(df):
     """Feature engineering"""
     # Condition score
-    df['condition_score'] = df['condition'].map(CONDITION_SCORES)
+    if df['condition'].dtype == 'object':
+        df['condition_score'] = df['condition'].map(CONDITION_SCORES)
+    else:
+        # Sayısal condition (1-5)
+        condition_numeric_map = {
+            5: 1.0,    # Mükemmel
+            4: 0.93,   # Çok İyi
+            3: 0.85,   # İyi
+            2: 0.75,   # Orta
+            1: 0.60    # Kötü
+        }
+        df['condition_score'] = df['condition'].map(condition_numeric_map)
+    
+    df['condition_score'] = df['condition_score'].fillna(0.85)
     
     # Model yaşı
-    df['model_age'] = 2024 - df['release_year']
+    current_year = 2024
+    if 'cikis_yili' in df.columns:
+        df['model_age'] = current_year - df['cikis_yili']
+        df['release_year'] = df['cikis_yili']
+    elif 'release_year' in df.columns:
+        df['model_age'] = current_year - df['release_year']
+    else:
+        df['model_age'] = 3  # Default
+        df['release_year'] = 2021
     
     # Storage kategorisi
     df['storage_category'] = pd.cut(
@@ -74,8 +90,12 @@ def prepare_features(df):
     ).astype(int)
     
     # Pro model flag
-    df['is_pro'] = df['model_name'].str.contains('Pro', case=False).astype(int)
-    df['is_pro_max'] = df['model_name'].str.contains('Pro Max', case=False).astype(int)
+    df['is_pro'] = df['model'].str.contains('Pro', case=False).astype(int)
+    df['is_pro_max'] = df['model'].str.contains('Pro Max', case=False).astype(int)
+    
+    # Model ID oluştur
+    model_ids = {name: idx for idx, name in enumerate(df['model'].unique(), 1)}
+    df['model_id'] = df['model'].map(model_ids)
     
     # Feature columns
     feature_cols = [
@@ -213,6 +233,7 @@ def main():
     """Ana fonksiyon"""
     print('\n' + '🤖'*30)
     print('  iPhone Fiyat Tahmini - Model Karşılaştırması')
+    print('  (CSV dosyasından veri okuyarak)')
     print('🤖'*30)
     
     # Veri yükle
@@ -300,4 +321,3 @@ def main():
 
 if __name__ == '__main__':
     results, best = main()
-

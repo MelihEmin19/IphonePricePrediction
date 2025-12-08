@@ -3,6 +3,7 @@
 İster: Detaylı EDA yapılmalı (20 puan)
 
 Bu script, ikinci el iPhone fiyat tahmin projesi için detaylı EDA gerçekleştirir.
+Veri kaynağı: data/dataset.csv (sitelerden çekilmiş veriler)
 Çalıştırma: python eda_analysis.py
 """
 
@@ -10,8 +11,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-import psycopg2
-from config import DB_CONFIG
+import os
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -21,31 +21,30 @@ plt.rcParams['figure.figsize'] = (12, 6)
 plt.rcParams['font.size'] = 11
 sns.set_palette('husl')
 
+# CSV dosya yolu
+CSV_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'dataset.csv')
+
 
 def load_data():
-    """Veritabanından veri yükle"""
-    query = """
-    SELECT 
-        b.name as brand_name,
-        m.id as model_id,
-        m.name as model_name,
-        m.release_year,
-        s.ram_gb,
-        s.storage_gb,
-        l.condition,
-        l.price,
-        l.source,
-        l.scraped_at
-    FROM listings l
-    JOIN specs s ON l.spec_id = s.id
-    JOIN models m ON s.model_id = m.id
-    JOIN brands b ON m.brand_id = b.id
-    WHERE l.is_active = TRUE
-    """
+    """CSV dosyasından veri yükle"""
+    print(f'📂 CSV okunuyor: {CSV_PATH}')
     
-    conn = psycopg2.connect(**DB_CONFIG)
-    df = pd.read_sql(query, conn)
-    conn.close()
+    df = pd.read_csv(CSV_PATH)
+    
+    # Kolon isimlerini standartlaştır
+    if 'model' in df.columns and 'model_name' not in df.columns:
+        df['model_name'] = df['model']
+    
+    if 'cikis_yili' in df.columns and 'release_year' not in df.columns:
+        df['release_year'] = df['cikis_yili']
+    
+    # Veri kaynaklarını göster
+    if 'source' in df.columns:
+        sources = df['source'].value_counts()
+        print(f'\n📊 Veri Kaynakları (Sitelerden çekilmiş):')
+        for source, count in sources.items():
+            print(f'   {source}: {count} ilan')
+    
     return df
 
 
@@ -81,12 +80,21 @@ def descriptive_stats(df):
     print_section('2. BETİMLEYİCİ İSTATİSTİKLER')
     
     print('\n📊 Sayısal Değişkenler:')
-    numeric_stats = df[['release_year', 'ram_gb', 'storage_gb', 'price']].describe()
+    numeric_cols = ['ram_gb', 'storage_gb', 'price']
+    if 'release_year' in df.columns:
+        numeric_cols.insert(0, 'release_year')
+    if 'cikis_yili' in df.columns:
+        numeric_cols.insert(0, 'cikis_yili')
+    
+    available_cols = [col for col in numeric_cols if col in df.columns]
+    numeric_stats = df[available_cols].describe()
     print(numeric_stats.round(2).to_string())
     
     print('\n📊 Kategorik Değişkenler:')
-    print(f'\n   Model Sayısı: {df["model_name"].nunique()}')
-    print(f'   Kaynak Sayısı: {df["source"].nunique()}')
+    model_col = 'model_name' if 'model_name' in df.columns else 'model'
+    print(f'\n   Model Sayısı: {df[model_col].nunique()}')
+    if 'source' in df.columns:
+        print(f'   Kaynak Sayısı: {df["source"].nunique()}')
     print(f'   Durum Kategorisi: {df["condition"].nunique()}')
 
 
@@ -144,9 +152,11 @@ def categorical_analysis(df):
     """Kategorik değişken analizi"""
     print_section('4. KATEGORİK DEĞİŞKEN ANALİZİ')
     
+    model_col = 'model_name' if 'model_name' in df.columns else 'model'
+    
     # Model dağılımı
     print('\n📱 En Çok İlan Olan 10 Model:')
-    model_counts = df['model_name'].value_counts().head(10)
+    model_counts = df[model_col].value_counts().head(10)
     for model, count in model_counts.items():
         print(f'   {model}: {count} ilan')
     
@@ -157,21 +167,36 @@ def categorical_analysis(df):
         pct = count / len(df) * 100
         print(f'   {cond}: {count} ({pct:.1f}%)')
     
+    # Kaynak dağılımı
+    if 'source' in df.columns:
+        print('\n🌐 Kaynak Site Dağılımı:')
+        source_counts = df['source'].value_counts()
+        for source, count in source_counts.items():
+            pct = count / len(df) * 100
+            print(f'   {source}: {count} ({pct:.1f}%)')
+    
     # Grafik
     fig, axes = plt.subplots(1, 2, figsize=(14, 6))
     
     # Model sayıları
-    top_models = df['model_name'].value_counts().head(12)
+    top_models = df[model_col].value_counts().head(12)
     colors = plt.cm.viridis(np.linspace(0.2, 0.8, len(top_models)))
     axes[0].barh(top_models.index[::-1], top_models.values[::-1], color=colors)
     axes[0].set_xlabel('İlan Sayısı')
     axes[0].set_title('En Popüler 12 iPhone Modeli')
     
-    # Condition pie
-    colors_pie = ['#27ae60', '#3498db', '#f39c12', '#e74c3c']
-    axes[1].pie(condition_counts, labels=condition_counts.index, autopct='%1.1f%%', 
-                colors=colors_pie, explode=[0.02]*len(condition_counts))
-    axes[1].set_title('Kozmetik Durum Dağılımı')
+    # Kaynak pie
+    if 'source' in df.columns:
+        source_counts = df['source'].value_counts()
+        colors_pie = plt.cm.Set3(np.linspace(0, 1, len(source_counts)))
+        axes[1].pie(source_counts, labels=source_counts.index, autopct='%1.1f%%', 
+                    colors=colors_pie)
+        axes[1].set_title('Kaynak Site Dağılımı')
+    else:
+        colors_pie = ['#27ae60', '#3498db', '#f39c12', '#e74c3c']
+        axes[1].pie(condition_counts, labels=condition_counts.index, autopct='%1.1f%%', 
+                    colors=colors_pie[:len(condition_counts)])
+        axes[1].set_title('Kozmetik Durum Dağılımı')
     
     plt.tight_layout()
     plt.savefig('eda_02_categorical.png', dpi=150, bbox_inches='tight')
@@ -219,21 +244,21 @@ def feature_price_relationship(df):
     axes[0, 1].set_title('RAM vs Fiyat')
     
     # Condition box plot
-    condition_order = ['Mükemmel', 'Çok İyi', 'İyi', 'Orta']
-    df_plot = df[df['condition'].isin(condition_order)]
-    sns.boxplot(data=df_plot, x='condition', y='price', order=condition_order, 
-                palette='RdYlGn_r', ax=axes[1, 0])
+    model_col = 'model_name' if 'model_name' in df.columns else 'model'
+    sns.boxplot(data=df, x='condition', y='price', palette='RdYlGn_r', ax=axes[1, 0])
     axes[1, 0].set_xlabel('Kozmetik Durum')
     axes[1, 0].set_ylabel('Fiyat (TL)')
     axes[1, 0].set_title('Durum vs Fiyat')
     
     # Release year vs Price
-    year_avg = df.groupby('release_year')['price'].mean().sort_index()
-    axes[1, 1].plot(year_avg.index, year_avg.values, marker='o', linewidth=2, markersize=8, color='coral')
-    axes[1, 1].fill_between(year_avg.index, year_avg.values, alpha=0.3, color='coral')
-    axes[1, 1].set_xlabel('Çıkış Yılı')
-    axes[1, 1].set_ylabel('Ortalama Fiyat (TL)')
-    axes[1, 1].set_title('Çıkış Yılı vs Fiyat')
+    year_col = 'release_year' if 'release_year' in df.columns else 'cikis_yili'
+    if year_col in df.columns:
+        year_avg = df.groupby(year_col)['price'].mean().sort_index()
+        axes[1, 1].plot(year_avg.index, year_avg.values, marker='o', linewidth=2, markersize=8, color='coral')
+        axes[1, 1].fill_between(year_avg.index, year_avg.values, alpha=0.3, color='coral')
+        axes[1, 1].set_xlabel('Çıkış Yılı')
+        axes[1, 1].set_ylabel('Ortalama Fiyat (TL)')
+        axes[1, 1].set_title('Çıkış Yılı vs Fiyat')
     
     plt.tight_layout()
     plt.savefig('eda_03_feature_price.png', dpi=150, bbox_inches='tight')
@@ -245,9 +270,25 @@ def correlation_analysis(df):
     """Korelasyon analizi"""
     print_section('6. KORELASYON ANALİZİ')
     
-    # Sayısal korelasyon
-    numeric_cols = ['model_id', 'release_year', 'ram_gb', 'storage_gb', 'price']
-    corr_matrix = df[numeric_cols].corr()
+    # Sayısal kolonları belirle
+    numeric_cols = ['ram_gb', 'storage_gb', 'price']
+    
+    if 'release_year' in df.columns:
+        numeric_cols.insert(0, 'release_year')
+    elif 'cikis_yili' in df.columns:
+        numeric_cols.insert(0, 'cikis_yili')
+    
+    if 'ana_kamera_mp' in df.columns:
+        numeric_cols.append('ana_kamera_mp')
+    
+    # Model ID oluştur
+    model_col = 'model_name' if 'model_name' in df.columns else 'model'
+    model_ids = {name: idx for idx, name in enumerate(df[model_col].unique(), 1)}
+    df['model_id'] = df[model_col].map(model_ids)
+    numeric_cols.insert(0, 'model_id')
+    
+    available_cols = [col for col in numeric_cols if col in df.columns]
+    corr_matrix = df[available_cols].corr()
     
     print('\n📈 Fiyat ile Korelasyonlar:')
     price_corr = corr_matrix['price'].drop('price').sort_values(ascending=False)
@@ -299,12 +340,14 @@ def summary_report(df):
     """Özet rapor"""
     print_section('8. EDA SONUÇ RAPORU')
     
+    model_col = 'model_name' if 'model_name' in df.columns else 'model'
+    
     print(f'''
 ╔══════════════════════════════════════════════════════════╗
 ║                    📊 ÖZET BULGULAR                       ║
 ╠══════════════════════════════════════════════════════════╣
 ║  📱 Toplam Veri: {len(df):,} kayıt                            
-║  📱 Benzersiz Model: {df['model_name'].nunique()} adet                         
+║  📱 Benzersiz Model: {df[model_col].nunique()} adet                         
 ║  💰 Fiyat Aralığı: {df['price'].min():,.0f} - {df['price'].max():,.0f} TL       
 ║  💰 Ortalama Fiyat: {df['price'].mean():,.0f} TL                        
 ╠══════════════════════════════════════════════════════════╣
@@ -324,6 +367,13 @@ def summary_report(df):
 ╚══════════════════════════════════════════════════════════╝
 ''')
     
+    # Veri kaynakları
+    if 'source' in df.columns:
+        print('\n🌐 Veriler Aşağıdaki Sitelerden Çekilmiştir:')
+        for source in df['source'].unique():
+            count = len(df[df['source'] == source])
+            print(f'   • {source}: {count} ilan')
+    
     print('\n📁 Oluşturulan Grafikler:')
     print('   • eda_01_price_distribution.png')
     print('   • eda_02_categorical.png')
@@ -335,6 +385,7 @@ def main():
     """Ana fonksiyon"""
     print('\n' + '🔬'*30)
     print('  iPhone Fiyat Tahmini - Keşifsel Veri Analizi (EDA)')
+    print('  (CSV dosyasından - sitelerden çekilmiş veriler)')
     print('🔬'*30)
     
     # Veri yükle
@@ -359,4 +410,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

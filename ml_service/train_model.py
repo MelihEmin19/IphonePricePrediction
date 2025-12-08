@@ -1,6 +1,6 @@
 """
 iPhone Fiyat Tahmini - ML Model Eğitimi
-Random Forest Regressor kullanarak model eğitir
+CSV dosyasından veri okuyarak Random Forest Regressor eğitir
 """
 
 import pandas as pd
@@ -9,16 +9,19 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-import psycopg2
 import joblib
 import logging
-from config import DB_CONFIG, MODEL_CONFIG, CONDITION_SCORES, MODEL_PATH, SCALER_PATH
+import os
+from config import MODEL_CONFIG, CONDITION_SCORES, MODEL_PATH, SCALER_PATH
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# CSV dosya yolu
+CSV_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'dataset.csv')
 
 
 class ModelTrainer:
@@ -30,54 +33,60 @@ class ModelTrainer:
         self.feature_names = None
         
     def fetch_training_data(self) -> pd.DataFrame:
-        """Veritabanından eğitim verisi çek"""
-        logger.info("Veritabanından veri çekiliyor...")
-        
-        query = """
-        SELECT 
-            b.id as brand_id,
-            b.name as brand_name,
-            m.id as model_id,
-            m.name as model_name,
-            m.release_year,
-            s.id as spec_id,
-            s.ram_gb,
-            s.storage_gb,
-            l.condition,
-            l.price,
-            l.source
-        FROM listings l
-        JOIN specs s ON l.spec_id = s.id
-        JOIN models m ON s.model_id = m.id
-        JOIN brands b ON m.brand_id = b.id
-        WHERE l.is_active = TRUE
-            AND l.price IS NOT NULL
-            AND l.price BETWEEN 5000 AND 100000
-        ORDER BY l.scraped_at DESC
-        """
+        """CSV dosyasından eğitim verisi oku"""
+        logger.info(f"CSV dosyasından veri okunuyor: {CSV_PATH}")
         
         try:
-            conn = psycopg2.connect(**DB_CONFIG)
-            df = pd.read_sql(query, conn)
-            conn.close()
+            df = pd.read_csv(CSV_PATH)
+            logger.info(f"Toplam {len(df)} kayıt okundu")
+            logger.info(f"Kolonlar: {list(df.columns)}")
             
-            logger.info(f"Toplam {len(df)} kayıt çekildi")
+            # Veri kaynakları (sitelerden çekilmiş)
+            if 'source' in df.columns:
+                sources = df['source'].value_counts()
+                logger.info(f"\nVeri Kaynakları:")
+                for source, count in sources.items():
+                    logger.info(f"  {source}: {count} ilan")
+            
             return df
             
+        except FileNotFoundError:
+            logger.error(f"CSV dosyası bulunamadı: {CSV_PATH}")
+            raise
         except Exception as e:
-            logger.error(f"Veri çekme hatası: {e}")
+            logger.error(f"Veri okuma hatası: {e}")
             raise
     
     def prepare_features(self, df: pd.DataFrame) -> tuple:
         """Feature engineering ve hazırlık"""
         logger.info("Feature engineering yapılıyor...")
         
-        # Kozmetik durum skorunu ekle
-        df['condition_score'] = df['condition'].map(CONDITION_SCORES)
+        # Condition sayısal değere dönüştür (CSV'de zaten sayısal olabilir)
+        if df['condition'].dtype == 'object':
+            df['condition_score'] = df['condition'].map(CONDITION_SCORES)
+        else:
+            # Eğer condition zaten sayısal ise (1-5 arası)
+            condition_numeric_map = {
+                5: 1.0,    # Mükemmel
+                4: 0.93,   # Çok İyi
+                3: 0.85,   # İyi
+                2: 0.75,   # Orta
+                1: 0.60    # Kötü
+            }
+            df['condition_score'] = df['condition'].map(condition_numeric_map)
+        
+        # Eksik değerleri doldur
+        df['condition_score'] = df['condition_score'].fillna(0.85)
         
         # Model yaşını hesapla
         current_year = 2024
-        df['model_age'] = current_year - df['release_year']
+        if 'cikis_yili' in df.columns:
+            df['model_age'] = current_year - df['cikis_yili']
+        elif 'release_year' in df.columns:
+            df['model_age'] = current_year - df['release_year']
+        else:
+            # Model adından yıl çıkar
+            df['model_age'] = df['model'].apply(self._extract_year_from_model)
         
         # Hafıza kategorileri
         df['storage_category'] = pd.cut(
@@ -94,10 +103,26 @@ class ModelTrainer:
         ).astype(int)
         
         # Pro modeller
-        df['is_pro'] = df['model_name'].str.contains('Pro', case=False).astype(int)
+        df['is_pro'] = df['model'].str.contains('Pro', case=False).astype(int)
         
         # Pro Max modeller
-        df['is_pro_max'] = df['model_name'].str.contains('Pro Max', case=False).astype(int)
+        df['is_pro_max'] = df['model'].str.contains('Pro Max', case=False).astype(int)
+        
+        # Model ID oluştur (model adından)
+        model_ids = {name: idx for idx, name in enumerate(df['model'].unique(), 1)}
+        df['model_id'] = df['model'].map(model_ids)
+        
+        # Ana kamera MP (varsa)
+        if 'ana_kamera_mp' in df.columns:
+            df['camera_mp'] = df['ana_kamera_mp']
+        else:
+            df['camera_mp'] = df['model'].apply(self._get_camera_mp)
+        
+        # Release year
+        if 'cikis_yili' in df.columns:
+            df['release_year'] = df['cikis_yili']
+        elif 'release_year' not in df.columns:
+            df['release_year'] = current_year - df['model_age']
         
         # Feature seçimi
         feature_columns = [
@@ -110,18 +135,73 @@ class ModelTrainer:
             'ram_category',
             'is_pro',
             'is_pro_max',
-            'release_year'
+            'release_year',
+            'camera_mp'
         ]
         
-        X = df[feature_columns]
+        # Eksik kolonları çıkar
+        available_features = [col for col in feature_columns if col in df.columns]
+        
+        X = df[available_features]
         y = df['price']
         
-        self.feature_names = feature_columns
+        self.feature_names = available_features
         
-        logger.info(f"Features: {feature_columns}")
+        logger.info(f"Features: {available_features}")
         logger.info(f"Veri boyutu: X={X.shape}, y={y.shape}")
         
         return X, y
+    
+    def _extract_year_from_model(self, model_name: str) -> int:
+        """Model adından yaş hesapla"""
+        model_years = {
+            'iPhone 11': 2019,
+            'iPhone 11 Pro': 2019,
+            'iPhone 11 Pro Max': 2019,
+            'iPhone 12': 2020,
+            'iPhone 12 Mini': 2020,
+            'iPhone 12 Pro': 2020,
+            'iPhone 12 Pro Max': 2020,
+            'iPhone 13': 2021,
+            'iPhone 13 Mini': 2021,
+            'iPhone 13 Pro': 2021,
+            'iPhone 13 Pro Max': 2021,
+            'iPhone 14': 2022,
+            'iPhone 14 Plus': 2022,
+            'iPhone 14 Pro': 2022,
+            'iPhone 14 Pro Max': 2022,
+            'iPhone 15': 2023,
+            'iPhone 15 Plus': 2023,
+            'iPhone 15 Pro': 2023,
+            'iPhone 15 Pro Max': 2023,
+        }
+        year = model_years.get(model_name, 2021)
+        return 2024 - year
+    
+    def _get_camera_mp(self, model_name: str) -> int:
+        """Model adından kamera MP döndür"""
+        camera_mp = {
+            'iPhone 11': 12,
+            'iPhone 11 Pro': 12,
+            'iPhone 11 Pro Max': 12,
+            'iPhone 12': 12,
+            'iPhone 12 Mini': 12,
+            'iPhone 12 Pro': 12,
+            'iPhone 12 Pro Max': 12,
+            'iPhone 13': 12,
+            'iPhone 13 Mini': 12,
+            'iPhone 13 Pro': 12,
+            'iPhone 13 Pro Max': 12,
+            'iPhone 14': 12,
+            'iPhone 14 Plus': 12,
+            'iPhone 14 Pro': 48,
+            'iPhone 14 Pro Max': 48,
+            'iPhone 15': 48,
+            'iPhone 15 Plus': 48,
+            'iPhone 15 Pro': 48,
+            'iPhone 15 Pro Max': 48,
+        }
+        return camera_mp.get(model_name, 12)
     
     def train(self, X, y):
         """Model eğitimi"""
@@ -230,12 +310,11 @@ class ModelTrainer:
     def run(self):
         """Ana eğitim pipeline'ı"""
         try:
-            # 1. Veri çek
+            # 1. CSV'den veri oku
             df = self.fetch_training_data()
             
             if len(df) < 20:
                 logger.warning(f"Yetersiz veri! ({len(df)} kayıt). En az 20 kayıt gerekli.")
-                logger.info("Önce scraper'ı çalıştırın: python scraper/run_scraper.py")
                 return
             
             if len(df) < 100:
@@ -251,6 +330,7 @@ class ModelTrainer:
             self.save_model()
             
             logger.info("\n✓ Model eğitimi başarıyla tamamlandı!")
+            logger.info(f"✓ Veri kaynağı: {CSV_PATH}")
             
         except Exception as e:
             logger.error(f"✗ Eğitim hatası: {e}", exc_info=True)
@@ -260,7 +340,7 @@ class ModelTrainer:
 def main():
     """Ana fonksiyon"""
     logger.info("="*60)
-    logger.info("iPhone Fiyat Tahmini - Model Eğitimi")
+    logger.info("iPhone Fiyat Tahmini - Model Eğitimi (CSV'den)")
     logger.info("="*60 + "\n")
     
     trainer = ModelTrainer()
@@ -269,4 +349,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
