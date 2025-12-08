@@ -1,6 +1,6 @@
 """
 iPhone Fiyat Tahmin Sistemi - Web Scraper
-Hepsiburada, N11 ve GittiGidiyor'dan yenilenmiş iPhone ilanlarını toplar
+EasyCep'ten yenilenmiş iPhone ilanlarını çeker
 """
 
 import requests
@@ -8,11 +8,12 @@ from bs4 import BeautifulSoup
 import time
 import random
 import re
-import json
+import csv
+import os
 from fake_useragent import UserAgent
 from typing import List, Dict, Optional
 import logging
-from config import SCRAPER_CONFIG, TARGET_SITES, IPHONE_MODELS_MAP, STORAGE_VALUES, CONDITION_MAP
+from datetime import datetime
 
 # Logging yapılandırması
 logging.basicConfig(
@@ -25,474 +26,298 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# iPhone model bilgileri
+IPHONE_MODELS = {
+    'iPhone 11': {'ram': 4, 'release_year': 2019, 'camera_mp': 12, 'segment': 'Base'},
+    'iPhone 11 Pro': {'ram': 4, 'release_year': 2019, 'camera_mp': 12, 'segment': 'Pro'},
+    'iPhone 11 Pro Max': {'ram': 4, 'release_year': 2019, 'camera_mp': 12, 'segment': 'Pro Max'},
+    'iPhone 12': {'ram': 4, 'release_year': 2020, 'camera_mp': 12, 'segment': 'Base'},
+    'iPhone 12 Mini': {'ram': 4, 'release_year': 2020, 'camera_mp': 12, 'segment': 'Mini'},
+    'iPhone 12 Pro': {'ram': 6, 'release_year': 2020, 'camera_mp': 12, 'segment': 'Pro'},
+    'iPhone 12 Pro Max': {'ram': 6, 'release_year': 2020, 'camera_mp': 12, 'segment': 'Pro Max'},
+    'iPhone 13': {'ram': 4, 'release_year': 2021, 'camera_mp': 12, 'segment': 'Base'},
+    'iPhone 13 Mini': {'ram': 4, 'release_year': 2021, 'camera_mp': 12, 'segment': 'Mini'},
+    'iPhone 13 Pro': {'ram': 6, 'release_year': 2021, 'camera_mp': 12, 'segment': 'Pro'},
+    'iPhone 13 Pro Max': {'ram': 6, 'release_year': 2021, 'camera_mp': 12, 'segment': 'Pro Max'},
+    'iPhone 14': {'ram': 6, 'release_year': 2022, 'camera_mp': 12, 'segment': 'Base'},
+    'iPhone 14 Plus': {'ram': 6, 'release_year': 2022, 'camera_mp': 12, 'segment': 'Plus'},
+    'iPhone 14 Pro': {'ram': 6, 'release_year': 2022, 'camera_mp': 48, 'segment': 'Pro'},
+    'iPhone 14 Pro Max': {'ram': 6, 'release_year': 2022, 'camera_mp': 48, 'segment': 'Pro Max'},
+    'iPhone 15': {'ram': 6, 'release_year': 2023, 'camera_mp': 48, 'segment': 'Base'},
+    'iPhone 15 Plus': {'ram': 6, 'release_year': 2023, 'camera_mp': 48, 'segment': 'Plus'},
+    'iPhone 15 Pro': {'ram': 8, 'release_year': 2023, 'camera_mp': 48, 'segment': 'Pro'},
+    'iPhone 15 Pro Max': {'ram': 8, 'release_year': 2023, 'camera_mp': 48, 'segment': 'Pro Max'},
+    'iPhone 16': {'ram': 8, 'release_year': 2024, 'camera_mp': 48, 'segment': 'Base'},
+    'iPhone 16 Pro': {'ram': 8, 'release_year': 2024, 'camera_mp': 48, 'segment': 'Pro'},
+    'iPhone 16 Pro Max': {'ram': 8, 'release_year': 2024, 'camera_mp': 48, 'segment': 'Pro Max'},
+}
 
-class IPhoneScraper:
-    """iPhone ilan scraper sınıfı - Gerçek sitelerden veri çeker"""
+# Durum skorları
+CONDITION_MAP = {
+    'mükemmel': 5,
+    'mukemmel': 5,
+    'çok iyi': 4,
+    'cok iyi': 4,
+    'iyi': 3,
+    'orta': 2,
+    'kötü': 1,
+    'kotu': 1,
+}
+
+# EasyCep Kategori URL'leri
+EASYCEP_CATEGORIES = [
+    ('iPhone 11', 'https://easycep.com/kategori/iphone-11-64'),
+    ('iPhone 11 Pro', 'https://easycep.com/kategori/iphone-11-pro-65'),
+    ('iPhone 11 Pro Max', 'https://easycep.com/kategori/iphone-11-pro-max-66'),
+    ('iPhone 12', 'https://easycep.com/kategori/iphone-12-67'),
+    ('iPhone 12 Mini', 'https://easycep.com/kategori/iphone-12-mini-68'),
+    ('iPhone 12 Pro', 'https://easycep.com/kategori/iphone-12-pro-69'),
+    ('iPhone 12 Pro Max', 'https://easycep.com/kategori/iphone-12-pro-max-70'),
+    ('iPhone 13', 'https://easycep.com/kategori/iphone-13-116'),
+    ('iPhone 13 Mini', 'https://easycep.com/kategori/iphone-13-mini-117'),
+    ('iPhone 13 Pro', 'https://easycep.com/kategori/iphone-13-pro-118'),
+    ('iPhone 13 Pro Max', 'https://easycep.com/kategori/iphone-13-pro-max-119'),
+    ('iPhone 14', 'https://easycep.com/kategori/iphone-14-738'),
+    ('iPhone 14 Plus', 'https://easycep.com/kategori/iphone-14-plus-739'),
+    ('iPhone 14 Pro', 'https://easycep.com/kategori/iphone-14-pro-769'),
+    ('iPhone 14 Pro Max', 'https://easycep.com/kategori/iphone-14-pro-max-772'),
+    ('iPhone 15', 'https://easycep.com/kategori/iphone-15-935'),
+    ('iPhone 15 Plus', 'https://easycep.com/kategori/iphone-15-plus-936'),
+    ('iPhone 15 Pro', 'https://easycep.com/kategori/iphone-15-pro-937'),
+    ('iPhone 15 Pro Max', 'https://easycep.com/kategori/iphone-15-pro-max-938'),
+    ('iPhone 16', 'https://easycep.com/kategori/iphone-16-1107'),
+    ('iPhone 16 Pro', 'https://easycep.com/kategori/iphone-16-pro-1109'),
+    ('iPhone 16 Pro Max', 'https://easycep.com/kategori/iphone-16-pro-max-1110'),
+]
+
+
+class EasyCepScraper:
+    """EasyCep'ten iPhone verisi çeken scraper"""
     
     def __init__(self):
         self.ua = UserAgent()
         self.session = requests.Session()
         self.scraped_data: List[Dict] = []
+        self.base_url = 'https://easycep.com'
         
     def get_headers(self) -> Dict[str, str]:
-        """Random user agent ile header oluştur"""
         return {
             'User-Agent': self.ua.random,
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             'Accept-Language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7',
-            'Accept-Encoding': 'gzip, deflate, br',
             'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1',
-            'Cache-Control': 'max-age=0'
         }
     
-    def extract_model_from_title(self, title: str) -> Optional[str]:
-        """Başlıktan iPhone modelini çıkar"""
-        title_lower = title.lower()
-        
-        # En uzun eşleşmeyi bul
-        best_match = None
-        best_match_length = 0
-        
-        for model_name in IPHONE_MODELS_MAP.keys():
-            model_lower = model_name.lower()
-            if model_lower in title_lower:
-                if len(model_lower) > best_match_length:
-                    best_match = model_name
-                    best_match_length = len(model_lower)
-        
-        return best_match
-    
-    def extract_storage_from_title(self, title: str) -> Optional[int]:
-        """Başlıktan hafıza bilgisini çıkar"""
-        pattern = r'(\d+)\s*gb'
-        match = re.search(pattern, title.lower())
-        
+    def extract_storage(self, title: str) -> Optional[int]:
+        """Başlıktan depolama kapasitesini çıkar"""
+        match = re.search(r'(\d+)\s*gb', title.lower())
         if match:
             storage = int(match.group(1))
-            if storage in STORAGE_VALUES:
+            if storage in [64, 128, 256, 512, 1024]:
                 return storage
         return None
     
-    def extract_condition(self, text: str) -> str:
-        """Metinden kozmetik durumu çıkar"""
+    def extract_condition(self, text: str) -> int:
+        """Metinden durum skorunu çıkar"""
         text_lower = text.lower()
-        
-        for key, value in CONDITION_MAP.items():
+        for key, score in CONDITION_MAP.items():
             if key in text_lower:
-                return value
-        
-        return 'İyi'  # Default
+                return score
+        return 3
     
-    def extract_price(self, price_text: str) -> Optional[float]:
-        """Fiyat metninden sayısal değer çıkar"""
-        price_text = price_text.replace('TL', '').replace('₺', '').strip()
-        price_text = price_text.replace('.', '').replace(',', '.')
+    def extract_taksit_prices(self, soup: BeautifulSoup) -> List[float]:
+        """Sayfadaki tüm taksit fiyatlarını çıkar ve toplam fiyata çevir"""
+        prices = []
+        page_text = soup.get_text()
         
-        try:
-            price_clean = re.sub(r'[^\d.]', '', price_text)
-            price = float(price_clean)
-            
-            if 5000 <= price <= 100000:
-                return price
-        except (ValueError, AttributeError):
-            pass
+        # Taksit pattern: "12 Ay x 5.763,23TL"
+        taksit_matches = re.findall(r'(\d+)\s*Ay\s*x\s*([\d.]+),?(\d{0,2})\s*TL', page_text, re.I)
         
-        return None
-    
-    def scrape_hepsiburada(self) -> List[Dict]:
-        """Hepsiburada'dan yenilenmiş iPhone ilanlarını çek"""
-        logger.info("Hepsiburada'dan veri çekiliyor...")
-        listings = []
-        
-        base_url = "https://www.hepsiburada.com"
-        search_urls = [
-            "/ara?q=yenilenmiş+iphone",
-            "/ara?q=ikinci+el+iphone",
-            "/ara?q=refurbished+iphone"
-        ]
-        
-        for search_url in search_urls:
+        for match in taksit_matches:
             try:
-                url = base_url + search_url
-                logger.info(f"  URL: {url}")
+                taksit_sayisi = int(match[0])
+                # Türk formatı: 5.763,23 -> 5763.23
+                integer_part = match[1].replace('.', '')
+                decimal_part = match[2] if match[2] else '00'
+                taksit_tutari = float(f"{integer_part}.{decimal_part}")
                 
-                response = self.session.get(
-                    url, 
-                    headers=self.get_headers(),
-                    timeout=SCRAPER_CONFIG['timeout']
-                )
+                toplam_fiyat = taksit_sayisi * taksit_tutari
                 
-                if response.status_code == 200:
-                    soup = BeautifulSoup(response.content, 'html.parser')
-                    
-                    # Ürün kartlarını bul
-                    product_cards = soup.find_all('li', {'class': re.compile(r'productListContent')})
-                    
-                    if not product_cards:
-                        # Alternatif selector
-                        product_cards = soup.find_all('div', {'data-test-id': 'product-card'})
-                    
-                    logger.info(f"    {len(product_cards)} ürün bulundu")
-                    
-                    for card in product_cards[:50]:  # İlk 50 ürün
-                        try:
-                            # Başlık
-                            title_elem = card.find('h3') or card.find('span', {'class': re.compile(r'title')})
-                            title = title_elem.get_text(strip=True) if title_elem else ""
-                            
-                            # iPhone model kontrolü
-                            model = self.extract_model_from_title(title)
-                            if not model:
-                                continue
-                            
-                            # Fiyat
-                            price_elem = card.find('div', {'data-test-id': 'price-current-price'})
-                            if not price_elem:
-                                price_elem = card.find('span', {'class': re.compile(r'price')})
-                            
-                            price_text = price_elem.get_text(strip=True) if price_elem else ""
-                            price = self.extract_price(price_text)
-                            
-                            if not price:
-                                continue
-                            
-                            # Storage
-                            storage = self.extract_storage_from_title(title) or 128
-                            
-                            # RAM (modelden)
-                            ram = IPHONE_MODELS_MAP.get(model, {}).get('ram', 4)
-                            
-                            # Durum
-                            condition = self.extract_condition(title)
-                            
-                            listing = {
-                                'title': title,
-                                'model': model,
-                                'model_id': IPHONE_MODELS_MAP.get(model, {}).get('model_id', 1),
-                                'ram_gb': ram,
-                                'storage_gb': storage,
-                                'condition': condition,
-                                'price': price,
-                                'source': 'Hepsiburada',
-                                'url': url
-                            }
-                            
-                            listings.append(listing)
-                            logger.debug(f"    ✓ {model} {storage}GB - {price:,.0f} TL")
-                            
-                        except Exception as e:
-                            logger.debug(f"    Ürün parse hatası: {e}")
-                            continue
-                
-                # Rate limiting
-                time.sleep(random.uniform(1, 3))
-                
-            except requests.RequestException as e:
-                logger.warning(f"  Hepsiburada bağlantı hatası: {e}")
+                if 5000 <= toplam_fiyat <= 200000:
+                    prices.append(toplam_fiyat)
+            except:
                 continue
         
-        logger.info(f"  Hepsiburada'dan toplam {len(listings)} ilan çekildi")
-        return listings
+        return prices
     
-    def scrape_n11(self) -> List[Dict]:
-        """N11'den yenilenmiş iPhone ilanlarını çek"""
-        logger.info("N11'den veri çekiliyor...")
+    def extract_product_links(self, soup: BeautifulSoup) -> List[str]:
+        """Sayfadaki ürün linklerini çıkar"""
+        links = []
+        all_links = soup.find_all('a', href=True)
+        
+        for link in all_links:
+            href = link.get('href', '')
+            # Ürün linki mi? (apple-iphone içeren)
+            if '/apple-iphone' in href.lower() and href not in links:
+                full_url = href if href.startswith('http') else f'{self.base_url}{href}'
+                links.append(full_url)
+        
+        return links
+    
+    def scrape_category(self, model_name: str, url: str) -> List[Dict]:
+        """Bir kategoriden ürünleri çek"""
         listings = []
+        page = 1
+        max_pages = 10
         
-        base_url = "https://www.n11.com"
-        search_urls = [
-            "/arama?q=yenilenmiş+iphone",
-            "/arama?q=ikinci+el+iphone"
-        ]
+        model_info = IPHONE_MODELS.get(model_name, {})
         
-        for search_url in search_urls:
+        while page <= max_pages:
+            page_url = f"{url}?page={page}" if page > 1 else url
+            
             try:
-                url = base_url + search_url
-                logger.info(f"  URL: {url}")
+                response = self.session.get(page_url, headers=self.get_headers(), timeout=15)
                 
-                response = self.session.get(
-                    url,
-                    headers=self.get_headers(),
-                    timeout=SCRAPER_CONFIG['timeout']
-                )
+                if response.status_code != 200:
+                    break
                 
-                if response.status_code == 200:
-                    soup = BeautifulSoup(response.content, 'html.parser')
-                    
-                    # Ürün kartlarını bul
-                    product_cards = soup.find_all('li', {'class': 'columnContent'})
-                    
-                    if not product_cards:
-                        product_cards = soup.find_all('div', {'class': re.compile(r'product')})
-                    
-                    logger.info(f"    {len(product_cards)} ürün bulundu")
-                    
-                    for card in product_cards[:50]:
-                        try:
-                            # Başlık
-                            title_elem = card.find('h3', {'class': 'productName'})
-                            if not title_elem:
-                                title_elem = card.find('a', {'class': re.compile(r'title')})
-                            
-                            title = title_elem.get_text(strip=True) if title_elem else ""
-                            
-                            model = self.extract_model_from_title(title)
-                            if not model:
-                                continue
-                            
-                            # Fiyat
-                            price_elem = card.find('ins', {'class': 'newPrice'})
-                            if not price_elem:
-                                price_elem = card.find('span', {'class': re.compile(r'price')})
-                            
-                            price_text = price_elem.get_text(strip=True) if price_elem else ""
-                            price = self.extract_price(price_text)
-                            
-                            if not price:
-                                continue
-                            
-                            storage = self.extract_storage_from_title(title) or 128
-                            ram = IPHONE_MODELS_MAP.get(model, {}).get('ram', 4)
-                            condition = self.extract_condition(title)
-                            
-                            listing = {
-                                'title': title,
-                                'model': model,
-                                'model_id': IPHONE_MODELS_MAP.get(model, {}).get('model_id', 1),
-                                'ram_gb': ram,
-                                'storage_gb': storage,
-                                'condition': condition,
-                                'price': price,
-                                'source': 'N11',
-                                'url': url
-                            }
-                            
-                            listings.append(listing)
-                            
-                        except Exception as e:
-                            logger.debug(f"    Ürün parse hatası: {e}")
-                            continue
-                
-                time.sleep(random.uniform(1, 3))
-                
-            except requests.RequestException as e:
-                logger.warning(f"  N11 bağlantı hatası: {e}")
-                continue
-        
-        logger.info(f"  N11'den toplam {len(listings)} ilan çekildi")
-        return listings
-    
-    def scrape_gittigidiyor(self) -> List[Dict]:
-        """GittiGidiyor'dan (artık Hepsiburada'ya yönleniyor) veri çek"""
-        logger.info("GittiGidiyor'dan veri çekiliyor...")
-        listings = []
-        
-        # GittiGidiyor artık Hepsiburada'ya yönleniyor
-        base_url = "https://www.gittigidiyor.com"
-        search_url = "/arama/?k=yenilenmiş+iphone"
-        
-        try:
-            url = base_url + search_url
-            logger.info(f"  URL: {url}")
-            
-            response = self.session.get(
-                url,
-                headers=self.get_headers(),
-                timeout=SCRAPER_CONFIG['timeout'],
-                allow_redirects=True
-            )
-            
-            if response.status_code == 200:
                 soup = BeautifulSoup(response.content, 'html.parser')
                 
-                product_cards = soup.find_all('li', {'class': re.compile(r'product')})
-                logger.info(f"    {len(product_cards)} ürün bulundu")
+                # Sayfadaki fiyatları çek
+                prices = self.extract_taksit_prices(soup)
                 
-                for card in product_cards[:50]:
-                    try:
-                        title_elem = card.find('a', {'class': re.compile(r'title')})
-                        title = title_elem.get_text(strip=True) if title_elem else ""
-                        
-                        model = self.extract_model_from_title(title)
-                        if not model:
-                            continue
-                        
-                        price_elem = card.find('p', {'class': re.compile(r'price')})
-                        price_text = price_elem.get_text(strip=True) if price_elem else ""
-                        price = self.extract_price(price_text)
-                        
-                        if not price:
-                            continue
-                        
-                        storage = self.extract_storage_from_title(title) or 128
-                        ram = IPHONE_MODELS_MAP.get(model, {}).get('ram', 4)
-                        condition = self.extract_condition(title)
-                        
-                        listing = {
-                            'title': title,
-                            'model': model,
-                            'model_id': IPHONE_MODELS_MAP.get(model, {}).get('model_id', 1),
-                            'ram_gb': ram,
-                            'storage_gb': storage,
-                            'condition': condition,
-                            'price': price,
-                            'source': 'GittiGidiyor',
-                            'url': url
-                        }
-                        
-                        listings.append(listing)
-                        
-                    except Exception as e:
-                        logger.debug(f"    Ürün parse hatası: {e}")
-                        continue
-            
-            time.sleep(random.uniform(1, 3))
-            
-        except requests.RequestException as e:
-            logger.warning(f"  GittiGidiyor bağlantı hatası: {e}")
-        
-        logger.info(f"  GittiGidiyor'dan toplam {len(listings)} ilan çekildi")
-        return listings
-    
-    def scrape_trendyol(self) -> List[Dict]:
-        """Trendyol'dan yenilenmiş iPhone ilanlarını çek"""
-        logger.info("Trendyol'dan veri çekiliyor...")
-        listings = []
-        
-        base_url = "https://www.trendyol.com"
-        search_url = "/sr?q=yenilenmiş+iphone"
-        
-        try:
-            url = base_url + search_url
-            logger.info(f"  URL: {url}")
-            
-            response = self.session.get(
-                url,
-                headers=self.get_headers(),
-                timeout=SCRAPER_CONFIG['timeout']
-            )
-            
-            if response.status_code == 200:
-                soup = BeautifulSoup(response.content, 'html.parser')
+                # Ürün linklerini çek
+                product_links = self.extract_product_links(soup)
                 
-                # Trendyol'un ürün kartları
-                product_cards = soup.find_all('div', {'class': re.compile(r'p-card')})
-                logger.info(f"    {len(product_cards)} ürün bulundu")
+                if not prices:
+                    break
                 
-                for card in product_cards[:50]:
-                    try:
-                        # Başlık
-                        title_elem = card.find('span', {'class': re.compile(r'prdct-desc')})
-                        title = title_elem.get_text(strip=True) if title_elem else ""
-                        
-                        model = self.extract_model_from_title(title)
-                        if not model:
-                            continue
-                        
-                        # Fiyat
-                        price_elem = card.find('div', {'class': re.compile(r'prc-box')})
-                        price_text = price_elem.get_text(strip=True) if price_elem else ""
-                        price = self.extract_price(price_text)
-                        
-                        if not price:
-                            continue
-                        
-                        storage = self.extract_storage_from_title(title) or 128
-                        ram = IPHONE_MODELS_MAP.get(model, {}).get('ram', 4)
-                        condition = self.extract_condition(title)
-                        
-                        listing = {
-                            'title': title,
-                            'model': model,
-                            'model_id': IPHONE_MODELS_MAP.get(model, {}).get('model_id', 1),
-                            'ram_gb': ram,
-                            'storage_gb': storage,
-                            'condition': condition,
-                            'price': price,
-                            'source': 'Trendyol',
-                            'url': url
-                        }
-                        
-                        listings.append(listing)
-                        
-                    except Exception as e:
-                        logger.debug(f"    Ürün parse hatası: {e}")
-                        continue
-            
-            time.sleep(random.uniform(1, 3))
-            
-        except requests.RequestException as e:
-            logger.warning(f"  Trendyol bağlantı hatası: {e}")
+                logger.info(f"    Sayfa {page}: {len(prices)} fiyat, {len(product_links)} link")
+                
+                # Her fiyat için bir ürün oluştur
+                for i, price in enumerate(prices):
+                    # Storage bilgisini linklerden çıkarmaya çalış
+                    storage = 128  # Default
+                    condition = 3  # Default: İyi
+                    
+                    if i < len(product_links):
+                        link_text = product_links[i]
+                        extracted_storage = self.extract_storage(link_text)
+                        if extracted_storage:
+                            storage = extracted_storage
+                    
+                    listing = {
+                        'model': model_name,
+                        'ram_gb': model_info.get('ram', 4),
+                        'storage_gb': storage,
+                        'condition': condition,
+                        'price': price,
+                        'source': 'EasyCep',
+                        'cikis_yili': model_info.get('release_year', 2021),
+                        'segment': model_info.get('segment', 'Base'),
+                        'ana_kamera_mp': model_info.get('camera_mp', 12),
+                    }
+                    
+                    listings.append(listing)
+                
+                page += 1
+                time.sleep(random.uniform(0.5, 1))
+                
+            except Exception as e:
+                logger.warning(f"    Hata: {e}")
+                break
         
-        logger.info(f"  Trendyol'dan toplam {len(listings)} ilan çekildi")
         return listings
     
     def run(self) -> List[Dict]:
-        """Ana scraping fonksiyonu - Tüm sitelerden veri toplar"""
+        """Ana scraping fonksiyonu"""
         logger.info("="*60)
-        logger.info("Web Scraping başlatıldı...")
+        logger.info("EasyCep Web Scraping Başlatıldı")
+        logger.info(f"Tarih: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         logger.info("="*60)
         
         all_listings = []
         
-        # Hepsiburada
-        try:
-            hb_data = self.scrape_hepsiburada()
-            all_listings.extend(hb_data)
-        except Exception as e:
-            logger.error(f"Hepsiburada scraping hatası: {e}")
+        for model_name, url in EASYCEP_CATEGORIES:
+            logger.info(f"\nKategori: {model_name}")
+            
+            listings = self.scrape_category(model_name, url)
+            all_listings.extend(listings)
+            
+            logger.info(f"  Toplam: {len(listings)} ürün")
+            time.sleep(random.uniform(1, 2))
         
-        # N11
-        try:
-            n11_data = self.scrape_n11()
-            all_listings.extend(n11_data)
-        except Exception as e:
-            logger.error(f"N11 scraping hatası: {e}")
+        # Duplicate temizle (aynı model, storage, fiyat)
+        unique_listings = []
+        seen = set()
         
-        # GittiGidiyor
-        try:
-            gg_data = self.scrape_gittigidiyor()
-            all_listings.extend(gg_data)
-        except Exception as e:
-            logger.error(f"GittiGidiyor scraping hatası: {e}")
+        for item in all_listings:
+            key = (item['model'], item['storage_gb'], round(item['price']))
+            if key not in seen:
+                seen.add(key)
+                unique_listings.append(item)
         
-        # Trendyol
-        try:
-            ty_data = self.scrape_trendyol()
-            all_listings.extend(ty_data)
-        except Exception as e:
-            logger.error(f"Trendyol scraping hatası: {e}")
+        self.scraped_data = unique_listings
         
-        self.scraped_data = all_listings
-        
-        logger.info("="*60)
-        logger.info(f"Scraping tamamlandı. Toplam {len(all_listings)} ilan bulundu")
+        logger.info("\n" + "="*60)
+        logger.info("Scraping Tamamlandı!")
+        logger.info(f"Ham veri: {len(all_listings)}")
+        logger.info(f"Benzersiz: {len(unique_listings)}")
         logger.info("="*60)
         
-        return all_listings
+        return unique_listings
+    
+    def save_to_csv(self, filename: str = None):
+        """Verileri CSV'ye kaydet"""
+        if not self.scraped_data:
+            logger.warning("Kaydedilecek veri yok!")
+            return
+        
+        if not filename:
+            filename = '../data/dataset.csv'
+        
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        
+        fieldnames = ['id', 'model', 'ram_gb', 'storage_gb', 'condition', 'price', 
+                      'source', 'seri_no', 'segment', 'cikis_yili', 'teknoloji_yasi', 'ana_kamera_mp']
+        
+        with open(filename, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            
+            for i, item in enumerate(self.scraped_data, 1):
+                model_num = ''.join(filter(str.isdigit, item['model']))[:2] or '11'
+                teknoloji_yasi = 2024 - item.get('cikis_yili', 2021)
+                
+                row = {
+                    'id': i,
+                    'model': item['model'],
+                    'ram_gb': item['ram_gb'],
+                    'storage_gb': item['storage_gb'],
+                    'condition': item['condition'],
+                    'price': round(item['price'], 2),
+                    'source': item['source'],
+                    'seri_no': model_num,
+                    'segment': item.get('segment', 'Base'),
+                    'cikis_yili': item.get('cikis_yili', 2021),
+                    'teknoloji_yasi': teknoloji_yasi,
+                    'ana_kamera_mp': item.get('ana_kamera_mp', 12),
+                }
+                writer.writerow(row)
+        
+        logger.info(f"\n✓ CSV kaydedildi: {filename}")
+        logger.info(f"  Toplam {len(self.scraped_data)} kayıt")
 
 
 def main():
     """Ana fonksiyon"""
-    scraper = IPhoneScraper()
+    scraper = EasyCepScraper()
     data = scraper.run()
     
-    logger.info(f"\n{'='*60}")
-    logger.info(f"ÖZET İSTATİSTİKLER")
-    logger.info(f"{'='*60}")
-    logger.info(f"Toplam ilan sayısı: {len(data)}")
-    
     if data:
-        # Kaynak dağılımı
-        sources = {}
-        for item in data:
-            source = item['source']
-            sources[source] = sources.get(source, 0) + 1
-        
-        logger.info(f"\nKaynak Dağılımı:")
-        for source, count in sorted(sources.items(), key=lambda x: x[1], reverse=True):
-            logger.info(f"  {source}: {count} ilan")
+        logger.info(f"\n{'='*60}")
+        logger.info("ÖZET İSTATİSTİKLER")
+        logger.info(f"{'='*60}")
         
         # Model dağılımı
         models = {}
@@ -500,18 +325,21 @@ def main():
             model = item['model']
             models[model] = models.get(model, 0) + 1
         
-        logger.info(f"\nModel Dağılımı (İlk 10):")
-        for model, count in sorted(models.items(), key=lambda x: x[1], reverse=True)[:10]:
+        logger.info("\nModel Dağılımı:")
+        for model, count in sorted(models.items(), key=lambda x: x[1], reverse=True):
             logger.info(f"  {model}: {count} ilan")
         
         # Fiyat aralığı
         prices = [item['price'] for item in data]
         logger.info(f"\nFiyat Aralığı:")
-        logger.info(f"  En düşük: {min(prices):,.2f} TL")
-        logger.info(f"  En yüksek: {max(prices):,.2f} TL")
-        logger.info(f"  Ortalama: {sum(prices)/len(prices):,.2f} TL")
-    
-    logger.info(f"{'='*60}\n")
+        logger.info(f"  En düşük: {min(prices):,.0f} TL")
+        logger.info(f"  En yüksek: {max(prices):,.0f} TL")
+        logger.info(f"  Ortalama: {sum(prices)/len(prices):,.0f} TL")
+        
+        # CSV'ye kaydet
+        scraper.save_to_csv('../data/dataset.csv')
+    else:
+        logger.warning("Hiç veri çekilemedi!")
     
     return data
 
