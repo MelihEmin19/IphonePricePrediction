@@ -122,20 +122,24 @@ router.get('/model-stats/:modelName', async (req, res) => {
         const fs = require('fs');
         const path = require('path');
         
-        // CSV dosyasını oku (doğru yol)
+        // CSV dosyasını oku
         const csvPath = path.join(__dirname, '..', '..', '..', 'data', 'dataset.csv');
         const csvContent = fs.readFileSync(csvPath, 'utf-8');
         const lines = csvContent.trim().split('\n');
         const headers = lines[0].split(',');
         
-        // İlgili modelin verilerini filtrele
+        // Segment puanını isme çevir
+        const segmentNames = { 1: 'Mini', 2: 'Base', 3: 'Plus', 4: 'Pro', 5: 'Pro Max' };
+        
+        // İlgili modelin verilerini filtrele (cihaz_isim kolonunda ara)
         const modelData = [];
         for (let i = 1; i < lines.length; i++) {
             const values = lines[i].split(',');
             const row = {};
             headers.forEach((h, idx) => row[h] = values[idx]);
             
-            if (row.model === modelName) {
+            // Apple iPhone XX formatında ara
+            if (row.cihaz_isim && row.cihaz_isim.includes(modelName)) {
                 modelData.push(row);
             }
         }
@@ -147,18 +151,19 @@ router.get('/model-stats/:modelName', async (req, res) => {
             });
         }
         
-        // İstatistikleri hesapla
-        const prices = modelData.map(d => parseFloat(d.price));
+        // İstatistikleri hesapla (cihaz_fiyat kolonunu kullan)
+        const prices = modelData.map(d => parseFloat(d.cihaz_fiyat));
         const avgPrice = prices.reduce((a, b) => a + b, 0) / prices.length;
         const minPrice = Math.min(...prices);
         const maxPrice = Math.max(...prices);
         
         // RAM ve Storage değerlerini topla
-        const ramValues = [...new Set(modelData.map(d => parseInt(d.ram_gb)))].sort((a, b) => a - b);
-        const storageValues = [...new Set(modelData.map(d => parseInt(d.storage_gb)))].sort((a, b) => a - b);
+        const ramValues = [...new Set(modelData.map(d => parseInt(d.ram_gb)))].filter(v => !isNaN(v)).sort((a, b) => a - b);
+        const storageValues = [...new Set(modelData.map(d => parseInt(d.storage_gb)))].filter(v => !isNaN(v)).sort((a, b) => a - b);
         
         // İlk satırdan diğer bilgileri al
         const firstRow = modelData[0];
+        const segmentPuan = parseInt(firstRow.segment_puan) || 2;
         
         res.json({
             success: true,
@@ -166,8 +171,8 @@ router.get('/model-stats/:modelName', async (req, res) => {
                 model_name: modelName,
                 ram_gb: ramValues,
                 storage_gb: storageValues,
-                camera_mp: parseInt(firstRow.ana_kamera_mp) || 12,
-                segment: firstRow.segment || 'Base',
+                camera_mp: parseInt(firstRow.kamera_mp) || 12,
+                segment: segmentNames[segmentPuan] || 'Base',
                 release_year: parseInt(firstRow.cikis_yili) || 2020,
                 avg_price: Math.round(avgPrice * 100) / 100,
                 min_price: Math.round(minPrice * 100) / 100,
@@ -336,29 +341,6 @@ router.get('/stats/dashboard', async (req, res) => {
     }
 });
 
-/**
- * POST /api/admin/scrape
- * Scraper'ı tetikle (Admin only)
- */
-router.post('/admin/scrape', async (req, res) => {
-    try {
-        // Not: Gerçek implementasyonda admin auth kontrolü yapılmalı
-        
-        // Burada Python scraper'ı child_process ile çalıştırılabilir
-        // Şimdilik placeholder response
-        
-        res.json({
-            success: true,
-            message: 'Scraper başlatıldı (arka planda çalışıyor)',
-            note: 'Gerçek implementasyon: python scraper/run_scraper.py'
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
-    }
-});
 
 /**
  * POST /soap/convert

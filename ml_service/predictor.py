@@ -4,9 +4,10 @@ Tahmin yapma modülü - Eğitilmiş modeli kullanarak fiyat tahmini yapar
 
 import joblib
 import numpy as np
+import pandas as pd
 import logging
 from typing import Dict
-from config import MODEL_PATH, SCALER_PATH, CONDITION_SCORES
+from config import MODEL_PATH, SCALER_PATH, CONFIG_PATH, CONDITION_SCORES, IPHONE_MODELS
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -18,6 +19,7 @@ class PricePredictor:
     def __init__(self):
         self.model = None
         self.scaler = None
+        self.config = None
         self.load_model()
     
     def load_model(self):
@@ -25,9 +27,11 @@ class PricePredictor:
         try:
             self.model = joblib.load(MODEL_PATH)
             self.scaler = joblib.load(SCALER_PATH)
-            logger.info("Model başarıyla yüklendi")
-        except FileNotFoundError:
-            logger.error(f"Model dosyası bulunamadı: {MODEL_PATH}")
+            self.config = joblib.load(CONFIG_PATH)
+            logger.info(f"Model başarıyla yüklendi: {self.config['model_name']}")
+            logger.info(f"Model R² Score: {self.config['metrics']['r2']:.4f}")
+        except FileNotFoundError as e:
+            logger.error(f"Model dosyası bulunamadı: {e}")
             logger.info("Önce modeli eğitin: python train_model.py")
             raise
         except Exception as e:
@@ -40,11 +44,10 @@ class PricePredictor:
         
         Args:
             input_data: {
-                'model_id': int,
+                'model_name': str (örn: 'iPhone 13'),
                 'ram_gb': int,
                 'storage_gb': int,
-                'condition': str,
-                'release_year': int
+                'condition': str (Mükemmel/Çok İyi/İyi/Orta)
             }
         
         Returns:
@@ -56,27 +59,44 @@ class PricePredictor:
         """
         try:
             # Feature'ları hazırla
-            features = self._prepare_features(input_data)
-            
-            # Scale et
-            features_scaled = self.scaler.transform([features])
+            features_df = self._prepare_features(input_data)
             
             # Tahmin yap
-            predicted_price = self.model.predict(features_scaled)[0]
+            if self.config.get('use_scaler', False):
+                features_scaled = self.scaler.transform(features_df)
+                predicted_price = self.model.predict(features_scaled)[0]
+            else:
+                predicted_price = self.model.predict(features_df)[0]
             
-            # Confidence score hesapla (estimator'ların std'sine göre)
-            predictions = []
-            for estimator in self.model.estimators_:
-                pred = estimator.predict(features_scaled)[0]
-                predictions.append(pred)
+            # Confidence hesapla (Gradient Boosting için staged_predict kullan)
+            confidence = 95.0  # Default yüksek güven
             
-            std = np.std(predictions)
-            confidence = max(0, min(100, 100 - (std / predicted_price * 100)))
+            if hasattr(self.model, 'estimators_'):
+                # Random Forest veya Gradient Boosting
+                predictions = []
+                
+                if hasattr(self.model, 'staged_predict'):
+                    # Gradient Boosting - son birkaç stage'i kullan
+                    for pred in list(self.model.staged_predict(features_df))[-10:]:
+                        predictions.append(pred[0])
+                else:
+                    # Random Forest - her ağacın tahminini al
+                    for tree in self.model.estimators_[:20]:
+                        if self.config.get('use_scaler', False):
+                            pred = tree.predict(features_scaled)[0]
+                        else:
+                            pred = tree.predict(features_df)[0]
+                        predictions.append(pred)
+                
+                if predictions:
+                    std = np.std(predictions)
+                    confidence = max(70, min(99, 100 - (std / max(predicted_price, 1) * 100)))
             
-            # Fiyat aralığı
+            # Fiyat aralığı (MAE bazlı)
+            mae = self.config['metrics'].get('mae', 1000)
             price_range = {
-                'min': max(5000, predicted_price - std * 1.5),
-                'max': min(100000, predicted_price + std * 1.5)
+                'min': max(5000, predicted_price - mae * 2),
+                'max': min(150000, predicted_price + mae * 2)
             }
             
             result = {
@@ -88,7 +108,7 @@ class PricePredictor:
                 }
             }
             
-            logger.info(f"Tahmin: {result['predicted_price']} TL (Güven: %{result['confidence_score']})")
+            logger.info(f"Tahmin: {result['predicted_price']:,.0f} TL (Güven: %{result['confidence_score']:.1f})")
             
             return result
             
@@ -96,88 +116,67 @@ class PricePredictor:
             logger.error(f"Tahmin hatası: {e}")
             raise
     
-    def _prepare_features(self, input_data: Dict) -> list:
-        """Input'tan feature vektörü oluştur"""
-        # Condition score
-        condition_score = CONDITION_SCORES.get(input_data['condition'], 0.85)
+    def _prepare_features(self, input_data: Dict) -> pd.DataFrame:
+        """Input'tan feature DataFrame oluştur"""
         
-        # Model age
-        current_year = 2024
-        model_age = current_year - input_data.get('release_year', 2020)
+        # Model adını normalize et
+        model_name = input_data.get('model_name', 'iPhone 13')
         
-        # Storage category
-        storage_gb = input_data['storage_gb']
-        if storage_gb <= 64:
-            storage_category = 1
-        elif storage_gb <= 128:
-            storage_category = 2
-        elif storage_gb <= 256:
-            storage_category = 3
-        elif storage_gb <= 512:
-            storage_category = 4
-        else:
-            storage_category = 5
+        # IPHONE_MODELS'den bilgileri al
+        model_info = IPHONE_MODELS.get(model_name, IPHONE_MODELS.get('iPhone 13'))
         
-        # RAM category
-        ram_gb = input_data['ram_gb']
-        if ram_gb <= 4:
-            ram_category = 1
-        elif ram_gb <= 6:
-            ram_category = 2
-        else:
-            ram_category = 3
+        # Condition skorunu al
+        condition_str = input_data.get('condition', 'İyi')
+        condition_score = CONDITION_SCORES.get(condition_str, 2)
         
-        # Pro model flags (model_id'den tahmin ediyoruz)
-        model_id = input_data['model_id']
-        # Model ID'lerine göre (schema'daki sıralamaya göre)
-        pro_models = [2, 3, 6, 7, 10, 11, 14, 15, 18, 19]
-        pro_max_models = [3, 7, 11, 15, 19]
+        # Feature'ları config'deki sırayla oluştur
+        # ['ram_gb', 'kamera_mp', 'ekran_boyutu', 'batarya_mah', 'storage_gb', 
+        #  'cikis_yili', 'cihaz_durum_puan', 'segment_puan', 'model_kodu']
         
-        is_pro = 1 if model_id in pro_models else 0
-        is_pro_max = 1 if model_id in pro_max_models else 0
+        features = {
+            'ram_gb': input_data.get('ram_gb', model_info.get('ram', 4)),
+            'kamera_mp': model_info.get('kamera_mp', 12),
+            'ekran_boyutu': model_info.get('ekran', 6.1),
+            'batarya_mah': model_info.get('batarya', 3000),
+            'storage_gb': input_data.get('storage_gb', 128),
+            'cikis_yili': model_info.get('yil', 2021),
+            'cihaz_durum_puan': condition_score,
+            'segment_puan': model_info.get('segment', 2),
+            'model_kodu': model_info.get('kod', 3)
+        }
         
-        # Feature vektörü (train_model.py'deki sırayla aynı olmalı)
-        features = [
-            input_data['model_id'],
-            ram_gb,
-            storage_gb,
-            condition_score,
-            model_age,
-            storage_category,
-            ram_category,
-            is_pro,
-            is_pro_max,
-            input_data.get('release_year', 2020)
-        ]
+        # DataFrame oluştur (config'deki sırayla)
+        feature_cols = self.config.get('feature_cols', list(features.keys()))
+        df = pd.DataFrame([[features.get(col, 0) for col in feature_cols]], columns=feature_cols)
         
-        return features
+        return df
 
 
 def main():
     """Test fonksiyonu"""
     predictor = PricePredictor()
     
-    # Örnek tahmin
-    test_input = {
-        'model_id': 8,  # iPhone 13
-        'ram_gb': 4,
-        'storage_gb': 128,
-        'condition': 'Mükemmel',
-        'release_year': 2021
-    }
+    # Test tahminleri
+    test_cases = [
+        {'model_name': 'iPhone 13', 'ram_gb': 4, 'storage_gb': 128, 'condition': 'Mükemmel'},
+        {'model_name': 'iPhone 14 Pro', 'ram_gb': 6, 'storage_gb': 256, 'condition': 'Çok İyi'},
+        {'model_name': 'iPhone 15 Pro Max', 'ram_gb': 8, 'storage_gb': 512, 'condition': 'Mükemmel'},
+        {'model_name': 'iPhone 11', 'ram_gb': 4, 'storage_gb': 64, 'condition': 'İyi'},
+    ]
     
-    result = predictor.predict(test_input)
+    print("\n" + "="*70)
+    print("TAHMİN SONUÇLARI")
+    print("="*70)
     
-    print("\n" + "="*60)
-    print("TAHMİN SONUCU")
-    print("="*60)
-    print(f"Model: iPhone 13, 128GB, Mükemmel")
-    print(f"Tahmini Fiyat: {result['predicted_price']:,.2f} TL")
-    print(f"Güven Skoru: %{result['confidence_score']:.2f}")
-    print(f"Fiyat Aralığı: {result['price_range']['min']:,.2f} - {result['price_range']['max']:,.2f} TL")
-    print("="*60)
+    for test in test_cases:
+        result = predictor.predict(test)
+        print(f"\n{test['model_name']} {test['storage_gb']}GB ({test['condition']})")
+        print(f"  Tahmini Fiyat: {result['predicted_price']:,.0f} TL")
+        print(f"  Güven: %{result['confidence_score']:.1f}")
+        print(f"  Aralık: {result['price_range']['min']:,.0f} - {result['price_range']['max']:,.0f} TL")
+    
+    print("\n" + "="*70)
 
 
 if __name__ == "__main__":
     main()
-
