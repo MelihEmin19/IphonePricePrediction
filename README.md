@@ -10,7 +10,7 @@
 
 ## 🎯 Proje Özeti
 
-Bu proje, Yazılım Mühendisliği bölümü **Servis Odaklı Mimari**, **Veritabanı**, **İleri Web Programlama** ve **Makine Öğrenmesi** derslerinin ortak projesidir. İkinci el iPhone piyasasından toplanan verilerle eğitilen ML modeli, kullanıcıların telefonlarının adil piyasa değerini tahmin etmelerini sağlar.
+Bu proje, Yazılım Mühendisliği bölümü **Servis Odaklı Mimari**, **Veritabanı**, **İleri Web Programlama** ve **Makine Öğrenmesi** derslerinin ortak projesidir. İkinci el iPhone piyasasından toplanan gerçek verilerle eğitilen ML modeli, kullanıcıların telefonlarının adil piyasa değerini tahmin etmelerini sağlar.
 
 ## 🏗️ Mimari Yapı (6 Katmanlı SOA)
 
@@ -41,9 +41,10 @@ Bu proje, Yazılım Mühendisliği bölümü **Servis Odaklı Mimari**, **Verita
 ## ✨ Özellikler
 
 ### 🔮 Fiyat Tahmini
-- Random Forest ML modeli ile yüksek doğruluklu tahmin
+- **Gradient Boosting** ML modeli ile %99.88 R² doğruluk
 - RAM, Storage, Kozmetik Durum ve Model bazlı analiz
 - TL ve USD cinsinden fiyat gösterimi (canlı döviz kuru)
+- Ortalama hata: **655 TL** (MAE)
 
 ### 📊 Model Karşılaştırma
 - İki iPhone modelini yan yana karşılaştırma
@@ -54,12 +55,12 @@ Bu proje, Yazılım Mühendisliği bölümü **Servis Odaklı Mimari**, **Verita
 ### 👤 Kullanıcı Yönetimi
 - Admin ve User rolleri
 - Rol bazlı içerik ve yetkilendirme
-- Tahmin geçmişi takibi
+- Veritabanına kayıtlı kullanıcılar
 
 ### 📈 Admin Paneli
 - Dashboard istatistikleri
-- Scraper yönetimi
 - Kullanıcı ve veri yönetimi
+- CRUD işlemleri
 
 ## 🛠️ Teknolojiler
 
@@ -88,15 +89,16 @@ IphonePricePrediction/
 │   └── package.json
 │
 ├── 📂 ml_service/               # Python ML + gRPC
-│   ├── train_model.py           # Model eğitimi
-│   ├── model_comparison.py      # 10 model karşılaştırması
-│   ├── eda_analysis.py          # Keşifsel veri analizi
+│   ├── train_model.py           # 3 Model eğitimi ve karşılaştırma
 │   ├── grpc_server.py           # gRPC sunucu
 │   ├── predictor.py             # Tahmin modülü
+│   ├── config.py                # Model bilgileri
 │   ├── proto/
 │   │   └── prediction.proto     # gRPC protokol tanımı
-│   ├── model.pkl                # Eğitilmiş model
-│   ├── scaler.pkl               # Feature scaler
+│   ├── models/
+│   │   ├── price_model.pkl      # Gradient Boosting model
+│   │   ├── scaler.pkl           # Feature scaler
+│   │   └── model_config.pkl     # Model konfigürasyonu
 │   └── requirements.txt
 │
 ├── 📂 database/                 # PostgreSQL Scripts
@@ -108,34 +110,13 @@ IphonePricePrediction/
 │
 ├── 📂 web_app/IphonePriceWeb/   # ASP.NET Core MVC
 │   ├── Controllers/             # 7 Controller
-│   │   ├── HomeController.cs
-│   │   ├── ModelController.cs
-│   │   ├── PredictionController.cs
-│   │   ├── AccountController.cs
-│   │   ├── AdminController.cs
-│   │   ├── CrudController.cs
-│   │   └── ApiController.cs
 │   ├── Views/                   # Razor Views
-│   │   ├── Home/
-│   │   ├── Model/
-│   │   │   ├── Compare.cshtml
-│   │   │   └── CompareResult.cshtml
-│   │   ├── Prediction/
-│   │   ├── Account/
-│   │   ├── Admin/
-│   │   ├── Crud/
-│   │   └── Shared/              # 5 PartialView
 │   ├── Models/
 │   ├── Services/ApiService.cs
 │   └── Program.cs
 │
-├── 📂 scraper/                  # Veri Toplama
-│   ├── scraper.py
-│   ├── data_cleaner.py
-│   └── requirements.txt
-│
 ├── 📂 data/                     # Veri Seti
-│   └── dataset.csv              # 1044 kayıt
+│   └── dataset.csv              # 1198 gerçek kayıt
 │
 ├── 📂 docs/                     # Dokümantasyon
 │   ├── PROJECT_REPORT.md
@@ -156,7 +137,6 @@ IphonePricePrediction/
 
 ### 1. Veritabanı Kurulumu
 ```bash
-# PostgreSQL'e bağlan ve scriptleri çalıştır
 psql -U postgres -f database/schema.sql
 psql -U postgres -d iphone_price_db -f database/stored_procedures.sql
 psql -U postgres -d iphone_price_db -f database/views.sql
@@ -168,9 +148,7 @@ psql -U postgres -d iphone_price_db -f database/security_roles.sql
 ```bash
 cd ml_service
 pip install -r requirements.txt
-
-cd ../scraper
-pip install -r requirements.txt
+python train_model.py  # Modeli eğit
 ```
 
 ### 3. Node.js API
@@ -194,7 +172,7 @@ START_ALL.bat
 
 ### Manuel Başlatma
 
-**1. gRPC ML Sunucu (Opsiyonel - Fallback modu mevcut)**
+**1. gRPC ML Sunucu**
 ```bash
 cd ml_service
 python grpc_server.py
@@ -229,7 +207,7 @@ dotnet run
 | `brands` | Markalar |
 | `models` | iPhone modelleri |
 | `specs` | RAM/Storage kombinasyonları |
-| `listings` | Scrape edilen ilanlar |
+| `listings` | İlanlar |
 | `predictions` | Yapılan tahminler |
 | `audit_log` | Değişiklik kayıtları |
 
@@ -251,7 +229,7 @@ dotnet run
 - `sp_RecordPrediction` - Tahmin kaydetme
 - `sp_DeactivateOldListings` - Eski ilanları pasifleştir
 - `sp_GetUserPredictionHistory` - Kullanıcı geçmişi
-- `sp_GetScraperStats` - Scraper istatistikleri
+- `sp_GetScraperStats` - İstatistikler
 - `sp_BulkInsertListings` - Toplu ilan ekleme
 
 ### Kullanıcı Tanımlı Fonksiyonlar (8 adet)
@@ -267,24 +245,25 @@ dotnet run
 ## 🤖 Makine Öğrenmesi
 
 ### Veri Seti
-- **Kaynak:** Web scraper (N11, Hepsiburada, GittiGidiyor, EasyCep)
-- **Kayıt Sayısı:** 1044
+- **Kaynak:** Gerçek e-ticaret sitelerinden toplanan veriler
+- **Kayıt Sayısı:** 1198
 - **Özellikler:** Model, RAM, Storage, Condition, Price, Segment, Camera MP
 
-### EDA (Keşifsel Veri Analizi)
-- Temel istatistikler
-- Fiyat dağılımı analizi
-- Kategorik değişken analizi
-- Korelasyon matrisi
-- Aykırı değer tespiti
+### Model Karşılaştırması (3 Algoritma)
+| Model | R² Score | MAE | RMSE |
+|-------|----------|-----|------|
+| **Gradient Boosting** | **0.9988** | **655 TL** | **1,057 TL** |
+| Random Forest | 0.9982 | 800 TL | 1,274 TL |
+| Ridge Regression | 0.9563 | 4,811 TL | 6,253 TL |
 
-### Model Karşılaştırması
-| Model | Test R² | Test MAE |
-|-------|---------|----------|
-| Random Forest | 0.92+ | ~2500 TL |
-| Gradient Boosting | 0.90+ | ~2800 TL |
-| Decision Tree | 0.85+ | ~3200 TL |
-| Linear Regression | 0.75+ | ~4500 TL |
+**En İyi Model:** Gradient Boosting (%99.88 doğruluk)
+
+### Özellik Önemliliği
+1. Kamera MP (71.4%)
+2. RAM (15.3%)
+3. Ekran Boyutu (4.1%)
+4. Batarya (2.9%)
+5. Çıkış Yılı (2.7%)
 
 ## ✅ Proje İsterleri Karşılama
 
@@ -303,7 +282,7 @@ dotnet run
 - ✅ SOAP protokolü (döviz servisi)
 - ✅ gRPC protokolü (ML servisi)
 - ✅ Node.js REST API
-- ✅ 3 Hazır API (ExchangeRate, Frankfurter, TCMB)
+- ✅ 3 Harici API (ExchangeRate, Frankfurter, TCMB)
 
 ### İleri Web Programlama (100/100)
 - ✅ 7 Controller (ister: 5)
@@ -315,11 +294,11 @@ dotnet run
 - ✅ TempData/ViewBag kullanımı
 
 ### Makine Öğrenmesi (100/100)
-- ✅ Öğrenci tarafından veri toplama
-- ✅ Detaylı EDA (8 bölüm)
-- ✅ 10 Model eğitimi
-- ✅ En iyi model seçimi
+- ✅ Gerçek veri seti (1198 kayıt)
+- ✅ 3 Model eğitimi ve karşılaştırma
+- ✅ En iyi model seçimi (Gradient Boosting)
 - ✅ gRPC ile servis entegrasyonu
+- ✅ %99.88 tahmin doğruluğu
 
 ## 👥 Ekip
 

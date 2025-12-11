@@ -19,13 +19,24 @@ except ImportError:
     exit(1)
 
 from predictor import PricePredictor
-from config import GRPC_CONFIG
+from config import GRPC_CONFIG, IPHONE_MODELS
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Model ID -> Model Name mapping
+MODEL_ID_MAP = {
+    1: 'iPhone 11', 2: 'iPhone 11 Pro', 3: 'iPhone 11 Pro Max',
+    4: 'iPhone 12', 5: 'iPhone 12 Mini', 6: 'iPhone 12 Pro', 7: 'iPhone 12 Pro Max',
+    8: 'iPhone 13', 9: 'iPhone 13 Mini', 10: 'iPhone 13 Pro', 11: 'iPhone 13 Pro Max',
+    12: 'iPhone 14', 13: 'iPhone 14 Plus', 14: 'iPhone 14 Pro', 15: 'iPhone 14 Pro Max',
+    16: 'iPhone 15', 17: 'iPhone 15 Plus', 18: 'iPhone 15 Pro', 19: 'iPhone 15 Pro Max',
+    20: 'iPhone 16', 21: 'iPhone 16 Plus', 22: 'iPhone 16 Pro', 23: 'iPhone 16 Pro Max',
+    24: 'iPhone 8', 25: 'iPhone SE 2020', 26: 'iPhone X', 27: 'iPhone XR', 28: 'iPhone XS'
+}
 
 
 class PricePredictionServicer(prediction_pb2_grpc.PricePredictionServicer):
@@ -39,17 +50,19 @@ class PricePredictionServicer(prediction_pb2_grpc.PricePredictionServicer):
     def PredictPrice(self, request, context):
         """Fiyat tahmini yap"""
         try:
-            logger.info(f"Tahmin isteği alındı: Model ID={request.model_id}, "
+            # Model ID'den model adını bul
+            model_name = MODEL_ID_MAP.get(request.model_id, 'iPhone 13')
+            
+            logger.info(f"Tahmin isteği: {model_name}, "
                        f"RAM={request.ram_gb}GB, Storage={request.storage_gb}GB, "
                        f"Condition={request.condition}")
             
-            # Input'u dict'e çevir
+            # Input'u dict'e çevir (yeni format)
             input_data = {
-                'model_id': request.model_id,
+                'model_name': model_name,
                 'ram_gb': request.ram_gb,
                 'storage_gb': request.storage_gb,
-                'condition': request.condition,
-                'release_year': request.release_year if request.release_year > 0 else 2020
+                'condition': request.condition
             }
             
             # Tahmin yap
@@ -64,10 +77,10 @@ class PricePredictionServicer(prediction_pb2_grpc.PricePredictionServicer):
                     max_price=result['price_range']['max']
                 ),
                 status='success',
-                message=f"Tahmin başarılı: {result['predicted_price']:,.2f} TL"
+                message=f"Tahmin başarılı: {result['predicted_price']:,.0f} TL"
             )
             
-            logger.info(f"Tahmin döndürüldü: {result['predicted_price']:,.2f} TL")
+            logger.info(f"Tahmin döndürüldü: {result['predicted_price']:,.0f} TL")
             return response
             
         except Exception as e:
@@ -84,29 +97,18 @@ class PricePredictionServicer(prediction_pb2_grpc.PricePredictionServicer):
     
     def GetModelInfo(self, request, context):
         """Model bilgilerini döndür"""
-        # Basit model mapping (gerçekte DB'den çekilebilir)
-        model_info = {
-            1: {'name': 'iPhone 11', 'year': 2019, 'storage': [64, 128, 256], 'ram': 4, 'pro': False},
-            8: {'name': 'iPhone 13', 'year': 2021, 'storage': [128, 256, 512], 'ram': 4, 'pro': False},
-            10: {'name': 'iPhone 13 Pro', 'year': 2021, 'storage': [128, 256, 512, 1024], 'ram': 6, 'pro': True},
-            16: {'name': 'iPhone 15', 'year': 2023, 'storage': [128, 256, 512], 'ram': 6, 'pro': False},
-            18: {'name': 'iPhone 15 Pro', 'year': 2023, 'storage': [128, 256, 512, 1024], 'ram': 8, 'pro': True},
-        }
+        model_name = MODEL_ID_MAP.get(request.model_id, 'iPhone 13')
+        info = IPHONE_MODELS.get(model_name, IPHONE_MODELS.get('iPhone 13'))
         
-        info = model_info.get(request.model_id, {
-            'name': 'Unknown',
-            'year': 2020,
-            'storage': [128],
-            'ram': 4,
-            'pro': False
-        })
+        # Storage seçenekleri segment'e göre
+        storage_options = [64, 128, 256] if info.get('segment', 2) <= 2 else [128, 256, 512, 1024]
         
         return prediction_pb2.ModelInfoResponse(
-            model_name=info['name'],
-            release_year=info['year'],
-            available_storage=info['storage'],
-            ram_gb=info['ram'],
-            is_pro=info['pro']
+            model_name=model_name,
+            release_year=info.get('yil', 2021),
+            available_storage=storage_options,
+            ram_gb=info.get('ram', 4),
+            is_pro='Pro' in model_name
         )
     
     def HealthCheck(self, request, context):
@@ -120,7 +122,7 @@ class PricePredictionServicer(prediction_pb2_grpc.PricePredictionServicer):
         
         return prediction_pb2.HealthCheckResponse(
             status=status,
-            version='1.0.0',
+            version='2.0.0',
             model_loaded=model_loaded,
             uptime=str(uptime)
         )
@@ -145,8 +147,8 @@ def serve():
     logger.info("gRPC SUNUCU BAŞLATILDI")
     logger.info("="*60)
     logger.info(f"Adres: {address}")
-    logger.info(f"Max Workers: {GRPC_CONFIG['max_workers']}")
-    logger.info("Servis: PricePrediction")
+    logger.info(f"Model: Gradient Boosting (R² = 0.9988)")
+    logger.info(f"Veri Seti: 1198 kayıt")
     logger.info("="*60)
     logger.info("\nSunucu çalışıyor... (Durdurmak için Ctrl+C)")
     
@@ -161,4 +163,3 @@ def serve():
 
 if __name__ == "__main__":
     serve()
-

@@ -21,11 +21,10 @@ echo ========================================
 echo Tum servisler baslatildi!
 echo ========================================
 echo.
-echo Python gRPC: http://localhost:50051
+echo Python gRPC: localhost:50051
 echo Node.js API: http://localhost:3000
-echo ASP.NET Web: http://localhost:5000
+echo ASP.NET Web: http://localhost:5164
 echo.
-echo Tarayicinizi acin: http://localhost:5000
+echo Tarayicinizi acin: http://localhost:5164
 echo.
 pause
-

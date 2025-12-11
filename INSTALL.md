@@ -2,10 +2,10 @@
 
 ## Gereksinimler
 
-- **PostgreSQL 16+** → [İndir](https://www.postgresql.org/download/)
+- **PostgreSQL 15+** → [İndir](https://www.postgresql.org/download/)
 - **Python 3.10+** → [İndir](https://www.python.org/downloads/)
 - **Node.js 18+** → [İndir](https://nodejs.org/)
-- **.NET 7.0+ SDK** → [İndir](https://dotnet.microsoft.com/download)
+- **.NET 9.0 SDK** → [İndir](https://dotnet.microsoft.com/download)
 
 ---
 
@@ -20,7 +20,7 @@ cd IphonePricePrediction
 
 ## Adım 2: PostgreSQL Kurulumu
 
-1. PostgreSQL 16 indir ve kur
+1. PostgreSQL 15+ indir ve kur
 2. Kurulum sırasında:
    - Şifre: `postgres123`
    - Port: `5432`
@@ -39,50 +39,11 @@ $env:PGPASSWORD="postgres123"
 
 ---
 
-## Adım 4: .env Dosyalarını Oluştur
-
-### scraper/.env
-```
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=iphone_price_db
-DB_USER=postgres
-DB_PASSWORD=postgres123
-```
-
-### ml_service/.env
-```
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=iphone_price_db
-DB_USER=postgres
-DB_PASSWORD=postgres123
-```
-
-### api_service/.env
-```
-PORT=3000
-NODE_ENV=development
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=iphone_price_db
-DB_USER=postgres
-DB_PASSWORD=postgres123
-GRPC_HOST=localhost
-GRPC_PORT=50051
-EXCHANGE_RATE_API=https://www.tcmb.gov.tr/kurlar/today.xml
-```
-
----
-
-## Adım 5: Bağımlılıkları Yükle
+## Adım 4: Bağımlılıkları Yükle
 
 ```bash
 # Python paketleri
-cd scraper
-pip install -r requirements.txt
-
-cd ../ml_service
+cd ml_service
 pip install -r requirements.txt
 
 # Node.js paketleri
@@ -92,50 +53,55 @@ npm install
 
 ---
 
-## Adım 6: Veri Topla ve Model Eğit
+## Adım 5: Model Eğit
 
 ```bash
-# Veri topla
-cd scraper
-python run_scraper.py
-
-# Model eğit
-cd ../ml_service
+cd ml_service
 python train_model.py
-
-# gRPC kodları üret
-python generate_grpc.py
 ```
+
+Bu işlem 3 algoritma test eder ve en iyisini seçer (Gradient Boosting, R² = 0.9988).
 
 ---
 
-## Adım 7: Servisleri Başlat
+## Adım 6: Servisleri Başlat
 
-### Terminal 1 - Python gRPC:
+### Otomatik (Windows):
+```bash
+START_ALL.bat
+```
+
+### Manuel:
+
+**Terminal 1 - Python gRPC:**
 ```bash
 cd ml_service
 python grpc_server.py
 ```
 
-### Terminal 2 - Node.js API:
+**Terminal 2 - Node.js API:**
 ```bash
 cd api_service
 npm start
 ```
 
-### Terminal 3 - ASP.NET Web:
+**Terminal 3 - ASP.NET Web:**
 ```bash
 cd web_app/IphonePriceWeb
-dotnet run --urls=http://localhost:5050
+dotnet run
 ```
 
 ---
 
-## Adım 8: Test Et
+## Adım 7: Test Et
 
-- **Web Uygulaması:** http://localhost:5050
+- **Web Uygulaması:** http://localhost:5164
 - **API:** http://localhost:3000
-- **Admin Panel:** http://localhost:5050/Admin/Panel
+- **Admin Panel:** http://localhost:5164/Admin/Panel
+
+### Giriş Bilgileri
+- **Admin:** admin / admin123
+- **Kullanıcı:** Kayıt ol
 
 ---
 
@@ -162,4 +128,3 @@ Sorun yaşarsanız `docs/` klasöründeki dokümanlara bakın:
 ---
 
 **İyi çalışmalar! 🎉**
-

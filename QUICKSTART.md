@@ -6,7 +6,7 @@
 - PostgreSQL 15+
 - Python 3.10+
 - Node.js 18+
-- .NET 7.0+ SDK
+- .NET 9.0 SDK
 
 ### 1. Veritabanı Kurulumu
 ```bash
@@ -19,11 +19,9 @@ psql -U postgres
 
 ### 2. Python Bağımlılıkları
 ```bash
-cd scraper
+cd ml_service
 pip install -r requirements.txt
-
-cd ../ml_service
-pip install -r requirements.txt
+python train_model.py  # Model eğit
 ```
 
 ### 3. Node.js Bağımlılıkları
@@ -32,32 +30,7 @@ cd api_service
 npm install
 ```
 
-### 4. Çevre Değişkenleri
-Her klasörde `.env` dosyası oluşturun (`.env.example` şablonundan):
-```bash
-# scraper/.env, ml_service/.env, api_service/.env
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=iphone_price_db
-DB_USER=postgres
-DB_PASSWORD=your_password
-```
-
-### 5. Veri ve Model Hazırlama
-```bash
-# Veri topla
-cd scraper
-python run_scraper.py
-
-# Model eğit
-cd ../ml_service
-python train_model.py
-
-# gRPC kodları üret
-python generate_grpc.py
-```
-
-### 6. Tüm Servisleri Başlat
+### 4. Tüm Servisleri Başlat
 
 **Windows:**
 ```bash
@@ -79,19 +52,20 @@ cd web_app/IphonePriceWeb
 dotnet run
 ```
 
-### 7. Tarayıcıda Aç
-- **Ana Sayfa:** http://localhost:5000
-- **Admin Panel:** http://localhost:5000/Admin/Panel
+### 5. Tarayıcıda Aç
+- **Ana Sayfa:** http://localhost:5164
+- **Admin Panel:** http://localhost:5164/Admin/Panel
 - **API:** http://localhost:3000
 
 ## 📝 Test Et
 
 ### Web Arayüzünden
-1. http://localhost:5000 aç
-2. Model: iPhone 13
-3. RAM: 4 GB, Hafıza: 128 GB
-4. Durum: Mükemmel
-5. "Fiyat Tahmin Et" tıkla
+1. http://localhost:5164 aç
+2. Giriş yap (admin/admin123)
+3. Model: iPhone 13
+4. RAM: 4 GB, Hafıza: 128 GB
+5. Durum: Mükemmel
+6. "Fiyat Tahmin Et" tıkla
 
 ### API'den
 ```bash
@@ -101,8 +75,7 @@ curl -X POST http://localhost:3000/api/predict \
     "model_id": 8,
     "ram_gb": 4,
     "storage_gb": 128,
-    "condition": "Mükemmel",
-    "release_year": 2021
+    "condition": "Mükemmel"
   }'
 ```
 
@@ -112,10 +85,10 @@ curl -X POST http://localhost:3000/api/predict \
   "success": true,
   "data": {
     "prediction": {
-      "price_tl": 23000.50,
-      "price_usd": 707.71,
-      "confidence": 89.5,
-      "range": {"min": 21500, "max": 24500}
+      "price_tl": 32574.00,
+      "price_usd": 945.50,
+      "confidence": 99.0,
+      "range": {"min": 31264, "max": 33883}
     }
   }
 }
@@ -127,7 +100,7 @@ curl -X POST http://localhost:3000/api/predict \
 ```bash
 # Windows
 netstat -ano | findstr :3000
-netstat -ano | findstr :5000
+netstat -ano | findstr :5164
 netstat -ano | findstr :50051
 
 # Process'i öldür
@@ -147,23 +120,15 @@ python generate_grpc.py
 python grpc_server.py
 ```
 
-### Database bağlantı hatası
-- PostgreSQL çalışıyor mu? `pg_isready`
-- Şifreler doğru mu? `.env` kontrol et
-
 ## 📚 Detaylı Dokümantasyon
 - **Kurulum:** `docs/SETUP_GUIDE.md`
 - **Test:** `docs/TEST_GUIDE.md`
 - **Proje Raporu:** `docs/PROJECT_REPORT.md`
 
 ## 🎯 Özellikler
-✅ ML ile akıllı fiyat tahmini  
+✅ Gradient Boosting ile %99.88 doğruluk  
 ✅ gRPC + SOAP + REST API  
-✅ PostgreSQL (6 entity, 7 SP, 8 view)  
+✅ PostgreSQL (7 tablo, 7 SP, 10 view)  
 ✅ Admin paneli + istatistikler  
 ✅ Gerçek zamanlı döviz dönüşümü  
 ✅ Modern web arayüzü (Bootstrap 5)  
-
-## 📞 Destek
-Sorun mu yaşıyorsunuz? `docs/TEST_GUIDE.md` dosyasına bakın.
-
