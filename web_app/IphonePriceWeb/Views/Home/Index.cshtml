@@ -1,0 +1,215 @@
+﻿@model IphonePriceWeb.Models.PredictionRequest
+
+@{
+    ViewData["Title"] = "iPhone Fiyat Tahmini";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-lg">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0">
+                        <i class="bi bi-calculator"></i> iPhone Fiyat Tahmini
+                    </h3>
+                </div>
+                <div class="card-body p-4">
+                    @if (ViewBag.Error != null)
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <strong>Hata!</strong> @ViewBag.Error
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    }
+
+                    @if (ViewBag.LoginWarning != null)
+                    {
+                        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            <strong>Uyarı:</strong> @ViewBag.LoginWarning
+                            <a asp-controller="Account" asp-action="Login" class="alert-link ms-2">Giriş Yap</a> veya
+                            <a asp-controller="Account" asp-action="Register" class="alert-link">Kayıt Ol</a>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    }
+
+                    <p class="lead text-muted mb-4">
+                        İkinci el iPhone'unuzun gerçek piyasa değerini öğrenin. 
+                        Yapay zeka destekli sistemimiz, güncel pazar verilerine göre size adil bir fiyat sunar.
+                    </p>
+
+                    <form asp-action="Predict" method="post" id="predictForm">
+                        <!-- 1. Model Seçimi -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-phone"></i> iPhone Modeli
+                            </label>
+                            <select id="modelSelect" class="form-select form-select-lg" required>
+                                <option value="">-- Model Seçin --</option>
+                                @if (ViewBag.ModelOptions != null)
+                                {
+                                    @foreach (var item in ViewBag.ModelOptions)
+                                    {
+                                        <option value="@item.ModelId">@item.DisplayName</option>
+                                    }
+                                }
+                            </select>
+                            <div class="form-text">
+                                <small>Cihazınızın modelini seçin</small>
+                            </div>
+                        </div>
+
+                        <!-- 2. Depolama Seçimi (Model seçilince aktif olur) -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-hdd"></i> Depolama Kapasitesi
+                            </label>
+                            <select id="storageSelect" class="form-select form-select-lg" disabled required>
+                                <option value="">-- Önce model seçin --</option>
+                            </select>
+                            <div class="form-text">
+                                <small>Cihazınızın depolama kapasitesini seçin</small>
+                            </div>
+                        </div>
+
+                        <!-- Hidden SpecsId -->
+                        <input type="hidden" asp-for="SpecsId" id="specsIdInput" />
+
+                        <!-- 3. Durum Seçimi -->
+                        <div class="mb-4">
+                            <label asp-for="ConditionId" class="form-label fw-bold">
+                                <i class="bi bi-star"></i> Cihaz Durumu
+                            </label>
+                            <select asp-for="ConditionId" class="form-select form-select-lg" asp-items="ViewBag.ConditionOptions">
+                                <option value="">-- Durum Seçin --</option>
+                            </select>
+                            <span asp-validation-for="ConditionId" class="text-danger"></span>
+                            <div class="form-text">
+                                <small>
+                                    <strong>Mükemmel:</strong> Sıfır ayarında, hiç kullanılmamış gibi<br />
+                                    <strong>Çok İyi:</strong> Minimal kullanım izi, mükemmel çalışır<br />
+                                    <strong>İyi:</strong> Normal kullanım izleri, tam çalışır<br />
+                                    <strong>Outlet:</strong> Belirgin kullanım izleri, çalışır durumda
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- RAM Bilgisi (Otomatik gösterilir) -->
+                        <div class="mb-4" id="ramInfo" style="display: none;">
+                            <div class="alert alert-info">
+                                <i class="bi bi-memory"></i> <strong>RAM:</strong> <span id="ramValue">-</span> GB
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            @if (User.Identity?.IsAuthenticated ?? false)
+                            {
+                                <button type="submit" class="btn btn-primary btn-lg" id="submitBtn" disabled>
+                                    <i class="bi bi-search"></i> Fiyat Tahmin Et
+                                </button>
+                            }
+                            else
+                            {
+                                <a asp-controller="Account" asp-action="Login" asp-route-returnUrl="@Url.Action("Index", "Home")" class="btn btn-warning btn-lg">
+                                    <i class="bi bi-box-arrow-in-right"></i> Tahmin İçin Giriş Yapın
+                                </a>
+                            }
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            @if (User.Identity?.IsAuthenticated ?? false)
+            {
+                <div class="card mt-4 shadow">
+                    <div class="card-body text-center">
+                        <a asp-controller="History" asp-action="Index" class="btn btn-outline-primary">
+                            <i class="bi bi-clock-history"></i> Tahmin Geçmişim
+                        </a>
+                    </div>
+                </div>
+            }
+
+            <div class="mt-4 text-center text-muted">
+                <small>
+                    <i class="bi bi-shield-check"></i> Verileriniz güvende, 
+                    <i class="bi bi-robot"></i> Yapay zeka destekli tahmin,
+                    <i class="bi bi-graph-up"></i> Güncel pazar verileri
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    
+    <script>
+        // Specs verisi (server'dan)
+        var specsData = @Html.Raw(ViewBag.SpecsJson ?? "[]");
+        
+        $(document).ready(function() {
+            var modelSelect = $('#modelSelect');
+            var storageSelect = $('#storageSelect');
+            var specsIdInput = $('#specsIdInput');
+            var ramInfo = $('#ramInfo');
+            var ramValue = $('#ramValue');
+            var submitBtn = $('#submitBtn');
+            
+            // Model değiştiğinde
+            modelSelect.change(function() {
+                var modelId = $(this).val();
+                
+                // Storage dropdown'u temizle
+                storageSelect.empty().append('<option value="">-- Depolama Seçin --</option>');
+                specsIdInput.val('');
+                ramInfo.hide();
+                submitBtn.prop('disabled', true);
+                
+                if (modelId) {
+                    // Bu modele ait storage seçeneklerini filtrele
+                    var modelSpecs = specsData.filter(function(s) { return s.modelId == modelId; });
+                    
+                    // Benzersiz storage değerlerini al
+                    var storages = [...new Set(modelSpecs.map(s => s.storageGb))].sort((a,b) => a-b);
+                    
+                    storages.forEach(function(storage) {
+                        var spec = modelSpecs.find(s => s.storageGb == storage);
+                        storageSelect.append('<option value="' + storage + '" data-specsid="' + spec.specsId + '" data-ram="' + spec.ramGb + '">' + storage + ' GB</option>');
+                    });
+                    
+                    storageSelect.prop('disabled', false);
+                } else {
+                    storageSelect.prop('disabled', true);
+                }
+            });
+            
+            // Storage değiştiğinde
+            storageSelect.change(function() {
+                var selectedOption = $(this).find('option:selected');
+                var specsId = selectedOption.data('specsid');
+                var ram = selectedOption.data('ram');
+                
+                if (specsId) {
+                    specsIdInput.val(specsId);
+                    ramValue.text(ram);
+                    ramInfo.show();
+                    submitBtn.prop('disabled', false);
+                } else {
+                    specsIdInput.val('');
+                    ramInfo.hide();
+                    submitBtn.prop('disabled', true);
+                }
+            });
+            
+            // Form submit kontrolü
+            $('#predictForm').submit(function(e) {
+                if (!specsIdInput.val()) {
+                    e.preventDefault();
+                    alert('Lütfen model ve depolama seçin.');
+                    return false;
+                }
+            });
+        });
+    </script>
+}

@@ -1,0 +1,230 @@
+@model IphonePriceWeb.Data.Entities.DashboardStatsView
+
+@{
+    ViewData["Title"] = "Admin Dashboard";
+}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-speedometer2"></i> Admin Dashboard</h2>
+        <span class="badge bg-primary fs-6">v_dashboard_stats view</span>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show">
+            @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Özet Kartları -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white shadow">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-white-50">Toplam Kullanıcı</h6>
+                            <h2>@Model.TotalUsers</h2>
+                        </div>
+                        <i class="bi bi-people fs-1 opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white shadow">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-white-50">Toplam Model</h6>
+                            <h2>@Model.TotalModels</h2>
+                        </div>
+                        <i class="bi bi-phone fs-1 opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white shadow">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-white-50">Toplam Specs</h6>
+                            <h2>@Model.TotalSpecs</h2>
+                        </div>
+                        <i class="bi bi-cpu fs-1 opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark shadow">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted">Toplam Tahmin</h6>
+                            <h2>@Model.TotalPredictions</h2>
+                        </div>
+                        <i class="bi bi-calculator fs-1 opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- İkinci Satır Kartları -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="card shadow">
+                <div class="card-body text-center">
+                    <h6 class="text-muted">Bugünkü Tahminler</h6>
+                    <h3 class="text-primary">@Model.PredictionsToday</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow">
+                <div class="card-body text-center">
+                    <h6 class="text-muted">Ortalama Tahmin Fiyatı</h6>
+                    <h3 class="text-success">₺@Model.AvgPredictedPrice.ToString("N0")</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow">
+                <div class="card-body text-center">
+                    <h6 class="text-muted">Ortalama Güven Skoru</h6>
+                    <h3 class="text-info">%@Model.AvgConfidence.ToString("N1")</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Yönetim Menüsü -->
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0"><i class="bi bi-gear"></i> Yönetim Paneli</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-2">
+                            <a asp-action="Segments" class="btn btn-outline-primary w-100 py-3">
+                                <i class="bi bi-layers fs-4 d-block mb-1"></i>
+                                Segmentler
+                            </a>
+                        </div>
+                        <div class="col-md-2">
+                            <a asp-action="Models" class="btn btn-outline-success w-100 py-3">
+                                <i class="bi bi-phone fs-4 d-block mb-1"></i>
+                                Modeller
+                            </a>
+                        </div>
+                        <div class="col-md-2">
+                            <a asp-action="Specs" class="btn btn-outline-info w-100 py-3">
+                                <i class="bi bi-cpu fs-4 d-block mb-1"></i>
+                                Specs
+                            </a>
+                        </div>
+                        <div class="col-md-2">
+                            <a asp-action="Conditions" class="btn btn-outline-warning w-100 py-3">
+                                <i class="bi bi-star fs-4 d-block mb-1"></i>
+                                Durumlar
+                            </a>
+                        </div>
+                        <div class="col-md-2">
+                            <a asp-action="Users" class="btn btn-outline-danger w-100 py-3">
+                                <i class="bi bi-people fs-4 d-block mb-1"></i>
+                                Kullanıcılar
+                            </a>
+                        </div>
+                        <div class="col-md-2">
+                            <a asp-action="Predictions" class="btn btn-outline-secondary w-100 py-3">
+                                <i class="bi bi-graph-up fs-4 d-block mb-1"></i>
+                                Tahminler
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Model İstatistikleri Tablosu -->
+    <div class="row g-4">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-bar-chart"></i> Model Bazlı İstatistikler</h5>
+                    <span class="badge bg-info">v_admin_model_stats view</span>
+                </div>
+                <div class="card-body">
+                    @if (ViewBag.ModelStats != null && ((List<IphonePriceWeb.Data.Entities.AdminModelStatsView>)ViewBag.ModelStats).Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Model</th>
+                                        <th>Segment</th>
+                                        <th class="text-center">Tahmin</th>
+                                        <th class="text-end">Ort. Fiyat</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var stat in (List<IphonePriceWeb.Data.Entities.AdminModelStatsView>)ViewBag.ModelStats)
+                                    {
+                                        <tr>
+                                            <td><strong>@stat.ModelName</strong></td>
+                                            <td><span class="badge bg-secondary">@stat.SegmentName</span></td>
+                                            <td class="text-center">@stat.PredictionCount</td>
+                                            <td class="text-end text-success">₺@stat.AvgPredictedPrice.ToString("N0")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted text-center">Henüz tahmin verisi yok.</p>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-pie-chart"></i> Durum İstatistikleri</h5>
+                    <span class="badge bg-info">v_admin_condition_stats</span>
+                </div>
+                <div class="card-body">
+                    @if (ViewBag.ConditionStats != null && ((List<IphonePriceWeb.Data.Entities.AdminConditionStatsView>)ViewBag.ConditionStats).Any())
+                    {
+                        <ul class="list-group">
+                            @foreach (var stat in (List<IphonePriceWeb.Data.Entities.AdminConditionStatsView>)ViewBag.ConditionStats)
+                            {
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    @stat.ConditionName
+                                    <div>
+                                        <span class="badge bg-primary rounded-pill me-2">@stat.PredictionCount tahmin</span>
+                                        <span class="text-success">₺@stat.AvgPredictedPrice.ToString("N0")</span>
+                                    </div>
+                                </li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <p class="text-muted text-center">Henüz durum verisi yok.</p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+

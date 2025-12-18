@@ -1,0 +1,65 @@
+@model IphonePriceWeb.Models.UserProfileViewModel
+@{
+    ViewData["Title"] = "Profilim";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0"><i class="bi bi-person-badge me-2"></i>Profilim</h4>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-person-circle text-primary" style="font-size: 5rem;"></i>
+                    </div>
+
+                    <table class="table">
+                        <tr>
+                            <th><i class="bi bi-person me-2"></i>Kullanıcı Adı</th>
+                            <td>@Model.Username</td>
+                        </tr>
+                        <tr>
+                            <th><i class="bi bi-shield me-2"></i>Rol</th>
+                            <td>
+                                @if (Model.Role == "Admin")
+                                {
+                                    <span class="badge bg-danger">Admin</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-primary">User</span>
+                                }
+                            </td>
+                        </tr>
+                        <tr>
+                            <th><i class="bi bi-clock me-2"></i>Giriş Zamanı</th>
+                            <td>@Model.LoginTime</td>
+                        </tr>
+                    </table>
+
+                    <hr />
+
+                    <div class="d-flex justify-content-between">
+                        @if (Model.Role == "Admin")
+                        {
+                            <a asp-controller="Admin" asp-action="Panel" class="btn btn-warning">
+                                <i class="bi bi-gear me-1"></i>Admin Panel
+                            </a>
+                        }
+                        <a asp-controller="Home" asp-action="Index" class="btn btn-primary">
+                            <i class="bi bi-calculator me-1"></i>Fiyat Tahmini Yap
+                        </a>
+                        <form asp-action="Logout" method="post" class="d-inline">
+                            <button type="submit" class="btn btn-danger">
+                                <i class="bi bi-box-arrow-right me-1"></i>Çıkış
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+

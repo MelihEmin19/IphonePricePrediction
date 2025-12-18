@@ -1,0 +1,60 @@
+@model IphonePriceWeb.Models.PredictionStatsViewModel
+@{
+    ViewData["Title"] = "Tahmin İstatistikleri";
+}
+
+<div class="container mt-4">
+    <h2><i class="bi bi-graph-up me-2"></i>Tahmin İstatistikleri</h2>
+    <p class="text-muted">Sistem genelindeki tahmin analizleri (Sadece Admin)</p>
+    
+    <hr />
+
+    <div class="row g-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white shadow">
+                <div class="card-body text-center">
+                    <i class="bi bi-calculator" style="font-size: 2rem;"></i>
+                    <h3 class="mt-2">@Model.TotalPredictions</h3>
+                    <p class="mb-0">Toplam Tahmin</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white shadow">
+                <div class="card-body text-center">
+                    <i class="bi bi-calendar-day" style="font-size: 2rem;"></i>
+                    <h3 class="mt-2">@Model.TodayPredictions</h3>
+                    <p class="mb-0">Bugünkü Tahmin</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white shadow">
+                <div class="card-body text-center">
+                    <i class="bi bi-graph-up-arrow" style="font-size: 2rem;"></i>
+                    <h3 class="mt-2">%@Model.AverageConfidence</h3>
+                    <p class="mb-0">Ort. Güven</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark shadow">
+                <div class="card-body text-center">
+                    <i class="bi bi-currency-dollar" style="font-size: 2rem;"></i>
+                    <h3 class="mt-2">₺@Model.AveragePredictedPrice.ToString("N0")</h3>
+                    <p class="mb-0">Ort. Fiyat</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow mt-4">
+        <div class="card-header">
+            <h5><i class="bi bi-trophy me-2"></i>En Çok Tahmin Edilen Model</h5>
+        </div>
+        <div class="card-body">
+            <h4 class="text-primary">@Model.MostPredictedModel</h4>
+        </div>
+    </div>
+</div>
+

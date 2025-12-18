@@ -1,0 +1,67 @@
+@model IEnumerable<IphonePriceWeb.Data.Entities.SegmentsCatalogView>
+
+@{
+    ViewData["Title"] = "Segment Yönetimi";
+}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-layers"></i> Segment Yönetimi</h2>
+        <div>
+            <span class="badge bg-info me-2">v_segments_catalog view</span>
+            <a asp-action="AddSegment" class="btn btn-primary">
+                <i class="bi bi-plus-lg"></i> Segment Ekle
+            </a>
+        </div>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show">
+            @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="card shadow">
+        <div class="card-header">
+            <h5 class="mb-0">Segment Listesi</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Segment Adı</th>
+                            <th class="text-center">Puan</th>
+                            <th class="text-center">Model Sayısı</th>
+                            <th>Oluşturulma</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var segment in Model)
+                        {
+                            <tr>
+                                <td>@segment.SegmentId</td>
+                                <td><strong>@segment.SegmentName</strong></td>
+                                <td class="text-center">
+                                    <span class="badge bg-primary">@segment.SegmentPuan</span>
+                                </td>
+                                <td class="text-center">@segment.ModelCount</td>
+                                <td>@segment.CreatedAt.ToString("dd.MM.yyyy")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-3">
+        <a asp-action="Dashboard" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Dashboard'a Dön
+        </a>
+    </div>
+</div>
+

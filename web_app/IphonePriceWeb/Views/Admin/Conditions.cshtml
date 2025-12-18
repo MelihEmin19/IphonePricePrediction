@@ -1,0 +1,67 @@
+@model IEnumerable<IphonePriceWeb.Data.Entities.ConditionCatalogView>
+
+@{
+    ViewData["Title"] = "Durum Yönetimi";
+}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-star"></i> Cihaz Durumu Yönetimi</h2>
+        <div>
+            <span class="badge bg-info me-2">v_condition_catalog view</span>
+            <a asp-action="AddCondition" class="btn btn-primary">
+                <i class="bi bi-plus-lg"></i> Durum Ekle
+            </a>
+        </div>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show">
+            @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="card shadow">
+        <div class="card-header">
+            <h5 class="mb-0">Durum Listesi</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Durum Adı</th>
+                            <th class="text-center">Puan</th>
+                            <th class="text-center">Fiyat Çarpanı</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var condition in Model)
+                        {
+                            <tr>
+                                <td>@condition.ConditionId</td>
+                                <td><strong>@condition.ConditionName</strong></td>
+                                <td class="text-center">
+                                    <span class="badge bg-primary">@condition.ConditionPuan</span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-success">x @condition.Multiplier.ToString("N2")</span>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-3">
+        <a asp-action="Dashboard" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Dashboard'a Dön
+        </a>
+    </div>
+</div>
+

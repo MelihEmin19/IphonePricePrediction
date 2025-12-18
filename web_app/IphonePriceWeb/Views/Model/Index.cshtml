@@ -1,0 +1,62 @@
+@model IEnumerable<IphonePriceWeb.Models.PhoneModel>
+@{
+    ViewData["Title"] = "iPhone Modelleri";
+}
+
+<div class="container mt-4">
+    <h2><i class="bi bi-phone me-2"></i>iPhone Modelleri</h2>
+    <p class="text-muted">Tüm desteklenen iPhone modellerinin listesi</p>
+    
+    <hr />
+
+    <!-- PartialView kullanımı -->
+    <partial name="_ModelFilterPartial" />
+
+    <div class="row row-cols-1 row-cols-md-3 row-cols-lg-4 g-4 mt-3">
+        @if (Model != null && Model.Any())
+        {
+            @foreach (var item in Model)
+            {
+                <div class="col">
+                    <div class="card h-100 shadow-sm model-card">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <i class="bi bi-phone text-primary me-2"></i>@item.Name
+                            </h5>
+                            <p class="card-text">
+                                <small class="text-muted">
+                                    <i class="bi bi-calendar me-1"></i>@item.ReleaseYear
+                                </small>
+                            </p>
+                        </div>
+                        <div class="card-footer bg-transparent">
+                            <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-info-circle me-1"></i>Detay
+                            </a>
+                            <a asp-controller="Home" asp-action="Index" class="btn btn-sm btn-primary">
+                                <i class="bi bi-calculator me-1"></i>Fiyat Tahmin
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="col-12">
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Henüz model bulunmamaktadır.
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+    .model-card:hover {
+        transform: translateY(-5px);
+        transition: transform 0.3s ease;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+    }
+</style>
+

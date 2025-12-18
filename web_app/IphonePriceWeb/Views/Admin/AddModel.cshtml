@@ -1,0 +1,53 @@
+@model IphonePriceWeb.Models.ModelFormModel
+
+@{
+    ViewData["Title"] = "Model Ekle";
+}
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-plus-lg"></i> Yeni Model Ekle</h5>
+                    <span class="badge bg-info">sp_admin_add_model</span>
+                </div>
+                <div class="card-body">
+                    <form asp-action="AddModel" method="post">
+                        <div class="mb-3">
+                            <label asp-for="ModelName" class="form-label"></label>
+                            <input asp-for="ModelName" class="form-control" placeholder="Örn: iPhone 16" />
+                            <span asp-validation-for="ModelName" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="SegmentName" class="form-label"></label>
+                            <select asp-for="SegmentName" class="form-select" asp-items="ViewBag.Segments">
+                                <option value="">-- Segment Seçin --</option>
+                            </select>
+                            <span asp-validation-for="SegmentName" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="ReleaseYear" class="form-label"></label>
+                            <input asp-for="ReleaseYear" type="number" class="form-control" value="2024" />
+                            <span asp-validation-for="ReleaseYear" class="text-danger"></span>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-lg"></i> Kaydet
+                            </button>
+                            <a asp-action="Models" class="btn btn-outline-secondary">İptal</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}
+

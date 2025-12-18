@@ -1,0 +1,50 @@
+@* PartialView: Model Filtresi *@
+
+<div class="card bg-light">
+    <div class="card-body">
+        <div class="row align-items-center">
+            <div class="col-md-4">
+                <label class="form-label">Yıla Göre Filtrele</label>
+                <select id="yearFilter" class="form-select" onchange="filterByYear(this.value)">
+                    <option value="">Tümü</option>
+                    <option value="2023">2023</option>
+                    <option value="2022">2022</option>
+                    <option value="2021">2021</option>
+                    <option value="2020">2020</option>
+                    <option value="2019">2019</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Seri</label>
+                <select id="seriesFilter" class="form-select" onchange="filterBySeries(this.value)">
+                    <option value="">Tümü</option>
+                    <option value="Pro Max">Pro Max</option>
+                    <option value="Pro">Pro</option>
+                    <option value="Plus">Plus</option>
+                    <option value="Mini">Mini</option>
+                    <option value="Standard">Standart</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Arama</label>
+                <input type="text" id="searchInput" class="form-control" placeholder="Model ara..." onkeyup="searchModel(this.value)" />
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function filterByYear(year) {
+        console.log('Yıl filtresi:', year);
+        // Client-side filtreleme yapılabilir
+    }
+    
+    function filterBySeries(series) {
+        console.log('Seri filtresi:', series);
+    }
+    
+    function searchModel(query) {
+        console.log('Arama:', query);
+    }
+</script>
+

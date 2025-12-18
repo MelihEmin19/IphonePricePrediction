@@ -1,0 +1,71 @@
+@model IEnumerable<IphonePriceWeb.Data.Entities.ModelsCatalogView>
+
+@{
+    ViewData["Title"] = "Model Yönetimi";
+}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-phone"></i> Model Yönetimi</h2>
+        <div>
+            <span class="badge bg-info me-2">v_models_catalog view</span>
+            <a asp-action="AddModel" class="btn btn-primary">
+                <i class="bi bi-plus-lg"></i> Model Ekle
+            </a>
+        </div>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show">
+            @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="card shadow">
+        <div class="card-header">
+            <h5 class="mb-0">Model Listesi</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Model Adı</th>
+                            <th>Segment</th>
+                            <th class="text-center">Çıkış Yılı</th>
+                            <th class="text-center">Specs Sayısı</th>
+                            <th>İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model)
+                        {
+                            <tr>
+                                <td>@item.ModelId</td>
+                                <td><strong>@item.ModelName</strong></td>
+                                <td><span class="badge bg-secondary">@item.SegmentName</span></td>
+                                <td class="text-center">@item.ReleaseYear</td>
+                                <td class="text-center">@item.SpecsCount</td>
+                                <td>
+                                    <a asp-action="EditModel" asp-route-id="@item.ModelId" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-pencil"></i> Düzenle
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-3">
+        <a asp-action="Dashboard" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Dashboard'a Dön
+        </a>
+    </div>
+</div>
+

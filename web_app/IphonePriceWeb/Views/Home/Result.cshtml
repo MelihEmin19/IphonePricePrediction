@@ -1,0 +1,137 @@
+@model IphonePriceWeb.Models.PredictionResponse
+
+@{
+    ViewData["Title"] = "Tahmin Sonucu";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-success text-white text-center py-4">
+                    <h2 class="mb-0">
+                        <i class="bi bi-check-circle"></i> Fiyat Tahmini Tamamlandı
+                    </h2>
+                </div>
+                <div class="card-body p-5">
+                    <!-- Ana Tahmin Sonucu -->
+                    <div class="text-center mb-5">
+                        <h1 class="display-3 text-success fw-bold">
+                            ₺@Model.Data.Prediction.PriceTl.ToString("N2")
+                        </h1>
+                        <p class="lead text-muted">Tahmini Piyasa Değeri</p>
+                        <p class="text-secondary">
+                            <i class="bi bi-currency-dollar"></i> 
+                            USD Karşılığı: $@Model.Data.Prediction.PriceUsd.ToString("N2")
+                        </p>
+                    </div>
+
+                    <!-- Güven Skoru -->
+                    <div class="row mb-4">
+                        <div class="col-md-6 mx-auto">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h5>Tahmin Güven Skoru</h5>
+                                    <div class="progress" style="height: 30px;">
+                                        <div class="progress-bar @(Model.Data.Prediction.Confidence >= 80 ? "bg-success" : 
+                                             Model.Data.Prediction.Confidence >= 60 ? "bg-warning" : "bg-danger")" 
+                                             role="progressbar" 
+                                             style="width: @Model.Data.Prediction.Confidence%"
+                                             aria-valuenow="@Model.Data.Prediction.Confidence" 
+                                             aria-valuemin="0" 
+                                             aria-valuemax="100">
+                                            <strong>%@Model.Data.Prediction.Confidence.ToString("N1")</strong>
+                                        </div>
+                                    </div>
+                                    <small class="text-muted d-block mt-2">
+                                        @if (Model.Data.Prediction.Confidence >= 80)
+                                        {
+                                            <span class="text-success">Yüksek güvenilirlik</span>
+                                        }
+                                        else if (Model.Data.Prediction.Confidence >= 60)
+                                        {
+                                            <span class="text-warning">Orta güvenilirlik</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-danger">Düşük güvenilirlik</span>
+                                        }
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Fiyat Aralığı -->
+                    <div class="alert alert-info">
+                        <h5 class="alert-heading">
+                            <i class="bi bi-graph-up-arrow"></i> Olası Fiyat Aralığı
+                        </h5>
+                        <p class="mb-0">
+                            <strong>En Düşük:</strong> ₺@Model.Data.Prediction.Range.Min.ToString("N2") <br />
+                            <strong>En Yüksek:</strong> ₺@Model.Data.Prediction.Range.Max.ToString("N2")
+                        </p>
+                        <hr />
+                        <small class="text-muted">
+                            Bu aralık, benzer özelliklere sahip telefonların satış fiyatlarına göre hesaplanmıştır.
+                        </small>
+                    </div>
+
+                    <!-- Seçilen Özellikler -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">Seçtiğiniz Özellikler</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <strong>Model ID:</strong><br />
+                                    @Model.Data.Input.ModelId
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>RAM:</strong><br />
+                                    @Model.Data.Input.RamGb GB
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>Hafıza:</strong><br />
+                                    @Model.Data.Input.StorageGb GB
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>Durum:</strong><br />
+                                    @Model.Data.Input.Condition
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bilgilendirme -->
+                    <div class="alert alert-warning">
+                        <h6 class="alert-heading">
+                            <i class="bi bi-info-circle"></i> Önemli Notlar
+                        </h6>
+                        <ul class="mb-0">
+                            <li>Bu tahmin, güncel pazar verilerine ve yapay zeka algoritmasına dayalıdır.</li>
+                            <li>Gerçek satış fiyatı, alıcı-satıcı müzakeresine bağlı olarak değişebilir.</li>
+                            <li>Fiyatlar, döviz kuru: ₺@Model.Data.ExchangeRate.ToString("N2") / USD üzerinden hesaplanmıştır.</li>
+                            <li>Telefonun gerçek durumu, pil sağlığı ve aksesuar durumu fiyatı etkileyebilir.</li>
+                        </ul>
+                    </div>
+
+                    <!-- Aksiyon Butonları -->
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-center mt-4">
+                        <a asp-action="Index" class="btn btn-primary btn-lg">
+                            <i class="bi bi-arrow-left"></i> Yeni Tahmin Yap
+                        </a>
+                        <a asp-controller="Admin" asp-action="Panel" class="btn btn-outline-secondary btn-lg">
+                            <i class="bi bi-speedometer2"></i> İstatistikler
+                        </a>
+                    </div>
+                </div>
+                <div class="card-footer text-muted text-center">
+                    <small>Tahmin Zamanı: @DateTime.Parse(Model.Data.Timestamp).ToString("dd.MM.yyyy HH:mm:ss")</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+

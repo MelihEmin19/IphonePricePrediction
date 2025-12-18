@@ -1,0 +1,196 @@
+@model IphonePriceWeb.Models.ModelCompareViewModel
+@{
+    ViewData["Title"] = "Karşılaştırma Sonucu";
+}
+
+<div class="container mt-4">
+    <h2><i class="bi bi-bar-chart me-2"></i>Karşılaştırma Sonucu</h2>
+    
+    @if (TempData["Model1Name"] != null)
+    {
+        <p class="text-muted">@TempData["Model1Name"] vs @TempData["Model2Name"]</p>
+    }
+    
+    <hr />
+
+    <div class="row">
+        <div class="col-md-5">
+            <div class="card shadow border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-phone me-2"></i>@Model?.Model1?.Name</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span><i class="bi bi-calendar-event me-2"></i>Çıkış Yılı</span>
+                            <strong>@(Model?.Stats1?.ReleaseYear ?? Model?.Model1?.ReleaseYear)</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span><i class="bi bi-tags me-2"></i>Segment</span>
+                            <strong>@(Model?.Stats1?.Segment ?? "Base")</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span><i class="bi bi-memory me-2"></i>RAM</span>
+                            <strong>
+                                @if (Model?.Stats1?.RamGb != null && Model.Stats1.RamGb.Any())
+                                {
+                                    @string.Join(" / ", Model.Stats1.RamGb.Select(r => $"{r} GB"))
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span><i class="bi bi-hdd me-2"></i>Depolama</span>
+                            <strong>
+                                @if (Model?.Stats1?.StorageGb != null && Model.Stats1.StorageGb.Any())
+                                {
+                                    @string.Join(" / ", Model.Stats1.StorageGb.Select(s => s >= 1024 ? $"{s/1024} TB" : $"{s} GB"))
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span><i class="bi bi-camera me-2"></i>Ana Kamera</span>
+                            <strong>@(Model?.Stats1?.CameraMp ?? 12) MP</strong>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-footer bg-light">
+                    <div class="text-center">
+                        <small class="text-muted">Ortalama Piyasa Fiyatı</small>
+                        <h4 class="text-primary mb-0">
+                            @if (Model?.Stats1?.AvgPrice > 0)
+                            {
+                                @Model.Stats1.AvgPrice.ToString("N2") <small>₺</small>
+                            }
+                            else
+                            {
+                                <span class="text-muted">-</span>
+                            }
+                        </h4>
+                        @if (Model?.Stats1 != null && Model.Stats1.MinPrice > 0)
+                        {
+                            <small class="text-muted">
+                                Min: @Model.Stats1.MinPrice.ToString("N0") ₺ - Max: @Model.Stats1.MaxPrice.ToString("N0") ₺
+                            </small>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-2 text-center align-self-center">
+            <i class="bi bi-arrow-left-right text-muted" style="font-size: 3rem;"></i>
+            <p class="text-muted mt-2">VS</p>
+        </div>
+
+        <div class="col-md-5">
+            <div class="card shadow border-success">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="bi bi-phone me-2"></i>@Model?.Model2?.Name</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span><i class="bi bi-calendar-event me-2"></i>Çıkış Yılı</span>
+                            <strong>@(Model?.Stats2?.ReleaseYear ?? Model?.Model2?.ReleaseYear)</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span><i class="bi bi-tags me-2"></i>Segment</span>
+                            <strong>@(Model?.Stats2?.Segment ?? "Base")</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span><i class="bi bi-memory me-2"></i>RAM</span>
+                            <strong>
+                                @if (Model?.Stats2?.RamGb != null && Model.Stats2.RamGb.Any())
+                                {
+                                    @string.Join(" / ", Model.Stats2.RamGb.Select(r => $"{r} GB"))
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span><i class="bi bi-hdd me-2"></i>Depolama</span>
+                            <strong>
+                                @if (Model?.Stats2?.StorageGb != null && Model.Stats2.StorageGb.Any())
+                                {
+                                    @string.Join(" / ", Model.Stats2.StorageGb.Select(s => s >= 1024 ? $"{s/1024} TB" : $"{s} GB"))
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span><i class="bi bi-camera me-2"></i>Ana Kamera</span>
+                            <strong>@(Model?.Stats2?.CameraMp ?? 12) MP</strong>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-footer bg-light">
+                    <div class="text-center">
+                        <small class="text-muted">Ortalama Piyasa Fiyatı</small>
+                        <h4 class="text-success mb-0">
+                            @if (Model?.Stats2?.AvgPrice > 0)
+                            {
+                                @Model.Stats2.AvgPrice.ToString("N2") <small>₺</small>
+                            }
+                            else
+                            {
+                                <span class="text-muted">-</span>
+                            }
+                        </h4>
+                        @if (Model?.Stats2 != null && Model.Stats2.MinPrice > 0)
+                        {
+                            <small class="text-muted">
+                                Min: @Model.Stats2.MinPrice.ToString("N0") ₺ - Max: @Model.Stats2.MaxPrice.ToString("N0") ₺
+                            </small>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* Fiyat Karşılaştırma Özeti *@
+    @if (Model?.Stats1?.AvgPrice > 0 && Model?.Stats2?.AvgPrice > 0)
+    {
+        var priceDiff = Model.Stats1.AvgPrice - Model.Stats2.AvgPrice;
+        var percentDiff = (priceDiff / Model.Stats2.AvgPrice) * 100;
+        var cheaperModel = priceDiff > 0 ? Model.Model2?.Name : Model.Model1?.Name;
+        
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card shadow-sm border-info">
+                    <div class="card-body text-center">
+                        <h5 class="text-info"><i class="bi bi-info-circle me-2"></i>Fiyat Karşılaştırması</h5>
+                        <p class="mb-0">
+                            <strong>@cheaperModel</strong> ortalama 
+                            <strong class="text-success">@Math.Abs(priceDiff).ToString("N0") ₺</strong> 
+                            (<strong>%@Math.Abs(percentDiff).ToString("N1")</strong>) daha uygun fiyatlı.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="text-center mt-4">
+        <a asp-action="Compare" class="btn btn-outline-primary">
+            <i class="bi bi-arrow-repeat me-1"></i>Yeni Karşılaştırma
+        </a>
+        <a asp-controller="Home" asp-action="Index" class="btn btn-primary">
+            <i class="bi bi-calculator me-1"></i>Fiyat Tahmin Et
+        </a>
+    </div>
+</div>

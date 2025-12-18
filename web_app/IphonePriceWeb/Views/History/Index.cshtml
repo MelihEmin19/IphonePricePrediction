@@ -1,0 +1,121 @@
+@model IEnumerable<IphonePriceWeb.Models.PredictionHistoryItem>
+
+@{
+    ViewData["Title"] = "Tahmin Geçmişim";
+}
+
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-clock-history"></i> Tahmin Geçmişim</h2>
+        <span class="badge bg-info">v_user_history_masked view</span>
+    </div>
+
+    <!-- Özet Kartları -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h6 class="text-white-50">Toplam Tahmin</h6>
+                    <h3>@ViewBag.TotalPredictions</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h6 class="text-white-50">Ortalama Fiyat</h6>
+                    <h3>₺@((ViewBag.AveragePrice as decimal?)?.ToString("N0") ?? "0")</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h6 class="text-white-50">Ort. Güven</h6>
+                    <h3>%@((ViewBag.AverageConfidence as decimal?)?.ToString("N1") ?? "0")</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark">
+                <div class="card-body text-center">
+                    <h6 class="text-muted">En Çok Tahmin</h6>
+                    <h5>@ViewBag.MostPredictedModel</h5>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow">
+        <div class="card-header">
+            <h5 class="mb-0">Tahminlerim</h5>
+        </div>
+        <div class="card-body">
+            @if (Model.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Tarih</th>
+                                <th>Cihaz (Specs Label)</th>
+                                <th>Durum</th>
+                                <th class="text-end">Tahmin Fiyatı</th>
+                                <th class="text-center">Güven Skoru</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model)
+                            {
+                                <tr>
+                                    <td>
+                                        <small class="text-muted">@item.CreatedAt.ToString("dd.MM.yyyy")</small><br />
+                                        <small>@item.CreatedAt.ToString("HH:mm")</small>
+                                    </td>
+                                    <td>
+                                        <strong>@item.SpecsLabel</strong>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">@item.ConditionName</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="text-success fw-bold fs-5">@item.FormattedPrice</span>
+                                    </td>
+                                    <td class="text-center">
+                                        @if (item.ConfidenceScore.HasValue)
+                                        {
+                                            var confidence = item.ConfidenceScore.Value;
+                                            var badgeClass = confidence >= 80 ? "bg-success" : confidence >= 60 ? "bg-warning" : "bg-danger";
+                                            <span class="badge @badgeClass">%@confidence.ToString("N1")</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="text-center py-5">
+                    <i class="bi bi-inbox fs-1 text-muted"></i>
+                    <h5 class="text-muted mt-3">Henüz tahmin yapmadınız</h5>
+                    <a asp-controller="Home" asp-action="Index" class="btn btn-primary mt-3">
+                        <i class="bi bi-calculator"></i> İlk Tahminini Yap
+                    </a>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="mt-3">
+        <a asp-controller="Home" asp-action="Index" class="btn btn-outline-primary">
+            <i class="bi bi-calculator"></i> Yeni Tahmin Yap
+        </a>
+    </div>
+</div>
+
